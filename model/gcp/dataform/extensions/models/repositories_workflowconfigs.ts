@@ -165,6 +165,27 @@ const GlobalArgsSchema = z.object({
     "Optional. Disables automatic creation of workflow invocations.",
   ).optional(),
   invocationConfig: z.object({
+    endUserAuthConfig: z.object({
+      oauthConfig: z.object({
+        additionalOauthScopes: z.array(z.string()).describe(
+          "Optional. Additional OAuth scopes to use for BigQuery executions. Scopes always in use: `https://www.googleapis.com/auth/bigquery`",
+        ).optional(),
+      }).describe("Optional. OAuth configuration for end user authentication.")
+        .optional(),
+      userEmail: z.string().describe(
+        "Output only. Email address of the user to run workflow invocations under.",
+      ).optional(),
+    }).describe(
+      "Optional. Configuration for end user authentication. Note that this should not be set when `service_account` is used.",
+    ).optional(),
+    executionMode: z.enum([
+      "EXECUTION_MODE_UNSPECIFIED",
+      "DEFAULT",
+      "ALL_EXCEPT_UNIT_TESTS",
+      "UNIT_TESTS_ONLY",
+    ]).describe(
+      "Optional. Specifies the execution mode for the workflow invocation.",
+    ).optional(),
     fullyRefreshIncrementalTablesEnabled: z.boolean().describe(
       "Optional. When set to true, any incremental tables will be fully refreshed.",
     ).optional(),
@@ -227,6 +248,13 @@ const StateSchema = z.object({
   disabled: z.boolean().optional(),
   internalMetadata: z.string().optional(),
   invocationConfig: z.object({
+    endUserAuthConfig: z.object({
+      oauthConfig: z.object({
+        additionalOauthScopes: z.array(z.string()),
+      }),
+      userEmail: z.string(),
+    }),
+    executionMode: z.string(),
     fullyRefreshIncrementalTablesEnabled: z.boolean(),
     includedTags: z.array(z.string()),
     includedTargets: z.array(z.object({
@@ -270,6 +298,27 @@ const InputsSchema = z.object({
     "Optional. Disables automatic creation of workflow invocations.",
   ).optional(),
   invocationConfig: z.object({
+    endUserAuthConfig: z.object({
+      oauthConfig: z.object({
+        additionalOauthScopes: z.array(z.string()).describe(
+          "Optional. Additional OAuth scopes to use for BigQuery executions. Scopes always in use: `https://www.googleapis.com/auth/bigquery`",
+        ).optional(),
+      }).describe("Optional. OAuth configuration for end user authentication.")
+        .optional(),
+      userEmail: z.string().describe(
+        "Output only. Email address of the user to run workflow invocations under.",
+      ).optional(),
+    }).describe(
+      "Optional. Configuration for end user authentication. Note that this should not be set when `service_account` is used.",
+    ).optional(),
+    executionMode: z.enum([
+      "EXECUTION_MODE_UNSPECIFIED",
+      "DEFAULT",
+      "ALL_EXCEPT_UNIT_TESTS",
+      "UNIT_TESTS_ONLY",
+    ]).describe(
+      "Optional. Specifies the execution mode for the workflow invocation.",
+    ).optional(),
     fullyRefreshIncrementalTablesEnabled: z.boolean().describe(
       "Optional. When set to true, any incremental tables will be fully refreshed.",
     ).optional(),
@@ -352,7 +401,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataform Repositories.WorkflowConfigs. Registered at `@swamp/gcp/dataform/repositories-workflowconfigs`. */
 export const model = {
   type: "@swamp/gcp/dataform/repositories-workflowconfigs",
-  version: "2026.08.12.2",
+  version: "2026.09.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -481,6 +530,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

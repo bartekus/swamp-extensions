@@ -303,7 +303,11 @@ const GlobalArgsSchema = z.object({
       "Required. SAML Identity provider configuration metadata xml doc. The xml document should comply with [SAML 2.0 specification](https://docs.oasis-open.org/security/saml/v2.0/saml-metadata-2.0-os.pdf). The max size of the acceptable xml document will be bounded to 128k characters. The metadata xml document should satisfy the following constraints: 1) Must contain an Identity Provider Entity ID. 2) Must contain at least one non-expired signing key certificate. 3) For each signing key: a) Valid from should be no more than 7 days from now. b) Valid to should be no more than 25 years in the future. 4) Up to 3 IdP signing keys are allowed in the metadata xml. When updating the provider's metadata xml, at least one non-expired signing key must overlap with the existing metadata. This requirement is skipped if there are no non-expired signing keys present in the existing metadata.",
     ).optional(),
   }).describe("A SAML identity provider configuration.").optional(),
-  scimUsage: z.enum(["SCIM_USAGE_UNSPECIFIED", "ENABLED_FOR_GROUPS"]).describe(
+  scimUsage: z.enum([
+    "SCIM_USAGE_UNSPECIFIED",
+    "ENABLED_FOR_GROUPS",
+    "ENABLED_FOR_USERS_GROUPS",
+  ]).describe(
     "Optional. Gemini Enterprise only. Specifies whether the workforce identity pool provider uses SCIM-managed groups instead of the `google.groups` attribute mapping for authorization checks. The `scim_usage` and `extended_attributes_oauth2_client` fields are mutually exclusive. A request that enables both fields on the same workforce identity pool provider will produce an error.",
   ).optional(),
   workforcePoolProviderId: z.string().describe(
@@ -525,7 +529,11 @@ const InputsSchema = z.object({
       "Required. SAML Identity provider configuration metadata xml doc. The xml document should comply with [SAML 2.0 specification](https://docs.oasis-open.org/security/saml/v2.0/saml-metadata-2.0-os.pdf). The max size of the acceptable xml document will be bounded to 128k characters. The metadata xml document should satisfy the following constraints: 1) Must contain an Identity Provider Entity ID. 2) Must contain at least one non-expired signing key certificate. 3) For each signing key: a) Valid from should be no more than 7 days from now. b) Valid to should be no more than 25 years in the future. 4) Up to 3 IdP signing keys are allowed in the metadata xml. When updating the provider's metadata xml, at least one non-expired signing key must overlap with the existing metadata. This requirement is skipped if there are no non-expired signing keys present in the existing metadata.",
     ).optional(),
   }).describe("A SAML identity provider configuration.").optional(),
-  scimUsage: z.enum(["SCIM_USAGE_UNSPECIFIED", "ENABLED_FOR_GROUPS"]).describe(
+  scimUsage: z.enum([
+    "SCIM_USAGE_UNSPECIFIED",
+    "ENABLED_FOR_GROUPS",
+    "ENABLED_FOR_USERS_GROUPS",
+  ]).describe(
     "Optional. Gemini Enterprise only. Specifies whether the workforce identity pool provider uses SCIM-managed groups instead of the `google.groups` attribute mapping for authorization checks. The `scim_usage` and `extended_attributes_oauth2_client` fields are mutually exclusive. A request that enables both fields on the same workforce identity pool provider will produce an error.",
   ).optional(),
   workforcePoolProviderId: z.string().describe(
@@ -562,7 +570,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Identity and Access Management (IAM) WorkforcePools.Providers. Registered at `@swamp/gcp/iam/workforcepools-providers`. */
 export const model = {
   type: "@swamp/gcp/iam/workforcepools-providers",
-  version: "2026.08.12.2",
+  version: "2026.09.11.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -571,6 +579,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

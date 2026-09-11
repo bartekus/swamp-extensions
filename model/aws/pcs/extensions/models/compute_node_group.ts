@@ -128,6 +128,9 @@ const GlobalArgsSchema = z.object({
     "Additional configuration when you specify SPOT as the purchase option.",
   ).optional(),
   SlurmConfiguration: z.object({
+    GresCustomSettings: z.array(z.record(z.string(), z.string())).describe(
+      "Additional Slurm gres.conf records for the compute node group. Each item is a map of gres.conf attribute names to values describing one gres.conf record (for example a GPU topology, MIG, MPS, or custom GRES entry). AWS PCS adds the NodeName= prefix and merges these records with the GPU record it derives from the instance type.",
+    ).optional(),
     ScaleDownIdleTimeInSeconds: z.number().int().min(1).max(10000000).describe(
       "The time before an idle node is scaled down.",
     ).optional(),
@@ -204,6 +207,7 @@ const StateSchema = z.object({
     AllocationStrategy: z.string(),
   }).optional(),
   SlurmConfiguration: z.object({
+    GresCustomSettings: z.array(z.record(z.string(), z.unknown())),
     ScaleDownIdleTimeInSeconds: z.number(),
     SlurmCustomSettings: z.array(SlurmCustomSettingSchema),
   }).optional(),
@@ -252,6 +256,9 @@ const InputsSchema = z.object({
     "Additional configuration when you specify SPOT as the purchase option.",
   ).optional(),
   SlurmConfiguration: z.object({
+    GresCustomSettings: z.array(z.record(z.string(), z.string())).describe(
+      "Additional Slurm gres.conf records for the compute node group. Each item is a map of gres.conf attribute names to values describing one gres.conf record (for example a GPU topology, MIG, MPS, or custom GRES entry). AWS PCS adds the NodeName= prefix and merges these records with the GPU record it derives from the instance type.",
+    ).optional(),
     ScaleDownIdleTimeInSeconds: z.number().int().min(1).max(10000000).describe(
       "The time before an idle node is scaled down.",
     ).optional(),
@@ -336,7 +343,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for PCS ComputeNodeGroup. Registered at `@swamp/aws/pcs/compute-node-group`. */
 export const model = {
   type: "@swamp/aws/pcs/compute-node-group",
-  version: "2026.08.17.2",
+  version: "2026.09.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -400,6 +407,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

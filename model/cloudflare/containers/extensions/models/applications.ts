@@ -80,8 +80,9 @@ const GlobalArgsSchema = z.object({
     logs: z.object({
       enabled: z.boolean().optional(),
     }).optional(),
-  }).describe("Settings for application observability such as logging.")
-    .optional(),
+  }).describe(
+    "Settings for application observability such as logging. Supported fields depend\non the application's scheduling policy. Durable Object-managed applications\naccept only `logs.enabled`.\n",
+  ).optional(),
   rollout_active_grace_period: z.number().int().min(0).max(604800).describe(
     "Grace period for active instances to stay alive before becoming eligible for shutdown signal due to a rollout, in seconds.\nDefaults to 0.\n",
   ).optional(),
@@ -243,7 +244,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Applications. Registered at `@swamp/cloudflare/containers/applications`. */
 export const model = {
   type: "@swamp/cloudflare/containers/applications",
-  version: "2026.08.28.1",
+  version: "2026.09.11.1",
   upgrades: [
     {
       toVersion: "2026.06.08.2",
@@ -310,6 +311,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/merchantapi"
-version: "2026.09.07.1"
+version: "2026.09.11.1"
 description: "Google Cloud merchantapi infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: accounts, termsofservice
+  - Updated: accounts_products
 models:
   - accounts.ts
   - accounts_aggregateproductstatuses.ts

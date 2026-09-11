@@ -58,11 +58,9 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   CoreNetworkId: z.string().describe("The ID of the core network."),
-  PrefixListArn: z.string().regex(
-    new RegExp(
-      "^arn:[a-z0-9-]+:ec2:[a-z]+-[a-z]+-[0-9]:([0-9]{12}):prefix-list/pl-[a-z0-9]+$",
-    ),
-  ).describe("The Amazon Resource Name (ARN) of the prefix list."),
+  PrefixListArn: z.string().describe(
+    "The Amazon Resource Name (ARN) of the prefix list.",
+  ),
   PrefixListAlias: z.string().describe("The alias of the prefix list"),
 });
 
@@ -81,11 +79,9 @@ const InputsSchema = z.object({
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
   CoreNetworkId: z.string().describe("The ID of the core network.").optional(),
-  PrefixListArn: z.string().regex(
-    new RegExp(
-      "^arn:[a-z0-9-]+:ec2:[a-z]+-[a-z]+-[0-9]:([0-9]{12}):prefix-list/pl-[a-z0-9]+$",
-    ),
-  ).describe("The Amazon Resource Name (ARN) of the prefix list.").optional(),
+  PrefixListArn: z.string().describe(
+    "The Amazon Resource Name (ARN) of the prefix list.",
+  ).optional(),
   PrefixListAlias: z.string().describe("The alias of the prefix list")
     .optional(),
 });
@@ -109,7 +105,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for NetworkManager CoreNetworkPrefixListAssociation. Registered at `@swamp/aws/networkmanager/core-network-prefix-list-association`. */
 export const model = {
   type: "@swamp/aws/networkmanager/core-network-prefix-list-association",
-  version: "2026.08.17.2",
+  version: "2026.09.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -158,6 +154,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

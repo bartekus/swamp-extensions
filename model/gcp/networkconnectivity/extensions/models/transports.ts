@@ -176,6 +176,9 @@ const GlobalArgsSchema = z.object({
   advertisedRoutes: z.array(z.string()).describe(
     "Optional. List of IP Prefixes that will be advertised to the remote provider. Both IPv4 and IPv6 addresses are supported.",
   ).optional(),
+  autoAccept: z.boolean().describe(
+    "Optional. Immutable. Controls whether resources proposed by the Transport are automatically accepted on behalf of the user. List of actions that can be automatically accepted are: 1. VPC Peering creation 2. Routing VPC Spoke creation 3. Hybrid Spoke creation",
+  ).optional(),
   bandwidth: z.enum([
     "BANDWIDTH_UNSPECIFIED",
     "BPS_50M",
@@ -196,6 +199,9 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   description: z.string().describe("Optional. Description of the Transport.")
     .optional(),
+  hub: z.string().describe(
+    "Optional. Immutable. The NCC Hub that the Transport should attach to. The hub must be in the same project as the Transport. Format: `{hub}` or `projects/{project}/locations/global/hubs/{hub}`",
+  ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. Labels as key value pairs.",
   ).optional(),
@@ -205,6 +211,9 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   providedActivationKey: z.string().describe(
     "Optional. Immutable. Key used for establishing a connection with the remote transport. This key can only be provided if the profile supports an INPUT key flow and the resource is in the PENDING_KEY state.",
+  ).optional(),
+  pscRoutingEnabled: z.boolean().describe(
+    "Optional. Immutable. Controls whether a Routing VPC Spoke should be created and attached to the NCC Hub. This will provide Private Service Connect (PSC) connectivity through NCC. This can only be set when the Transport is first created.",
   ).optional(),
   remoteAccountId: z.string().describe(
     "Optional. Immutable. The user supplied account id for the CSP associated with the remote profile.",
@@ -227,16 +236,19 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   advertisedRoutes: z.array(z.string()).optional(),
+  autoAccept: z.boolean().optional(),
   bandwidth: z.string().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   generatedActivationKey: z.string().optional(),
+  hub: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   mtuLimit: z.number().optional(),
   name: z.string(),
   network: z.string().optional(),
   peeringNetwork: z.string().optional(),
   providedActivationKey: z.string().optional(),
+  pscRoutingEnabled: z.boolean().optional(),
   remoteAccountId: z.string().optional(),
   remoteProfile: z.string().optional(),
   stackType: z.string().optional(),
@@ -255,6 +267,9 @@ const InputsSchema = z.object({
   apiEndpoint: z.string().optional(),
   advertisedRoutes: z.array(z.string()).describe(
     "Optional. List of IP Prefixes that will be advertised to the remote provider. Both IPv4 and IPv6 addresses are supported.",
+  ).optional(),
+  autoAccept: z.boolean().describe(
+    "Optional. Immutable. Controls whether resources proposed by the Transport are automatically accepted on behalf of the user. List of actions that can be automatically accepted are: 1. VPC Peering creation 2. Routing VPC Spoke creation 3. Hybrid Spoke creation",
   ).optional(),
   bandwidth: z.enum([
     "BANDWIDTH_UNSPECIFIED",
@@ -276,6 +291,9 @@ const InputsSchema = z.object({
   ).optional(),
   description: z.string().describe("Optional. Description of the Transport.")
     .optional(),
+  hub: z.string().describe(
+    "Optional. Immutable. The NCC Hub that the Transport should attach to. The hub must be in the same project as the Transport. Format: `{hub}` or `projects/{project}/locations/global/hubs/{hub}`",
+  ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. Labels as key value pairs.",
   ).optional(),
@@ -285,6 +303,9 @@ const InputsSchema = z.object({
   ).optional(),
   providedActivationKey: z.string().describe(
     "Optional. Immutable. Key used for establishing a connection with the remote transport. This key can only be provided if the profile supports an INPUT key flow and the resource is in the PENDING_KEY state.",
+  ).optional(),
+  pscRoutingEnabled: z.boolean().describe(
+    "Optional. Immutable. Controls whether a Routing VPC Spoke should be created and attached to the NCC Hub. This will provide Private Service Connect (PSC) connectivity through NCC. This can only be set when the Transport is first created.",
   ).optional(),
   remoteAccountId: z.string().describe(
     "Optional. Immutable. The user supplied account id for the CSP associated with the remote profile.",
@@ -331,7 +352,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Connectivity Transports. Registered at `@swamp/gcp/networkconnectivity/transports`. */
 export const model = {
   type: "@swamp/gcp/networkconnectivity/transports",
-  version: "2026.08.12.2",
+  version: "2026.09.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -458,6 +479,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.11.1",
+      description: "Added: autoAccept, hub, pscRoutingEnabled",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -491,15 +517,20 @@ export const model = {
         if (g["advertisedRoutes"] !== undefined) {
           body["advertisedRoutes"] = g["advertisedRoutes"];
         }
+        if (g["autoAccept"] !== undefined) body["autoAccept"] = g["autoAccept"];
         if (g["bandwidth"] !== undefined) body["bandwidth"] = g["bandwidth"];
         if (g["description"] !== undefined) {
           body["description"] = g["description"];
         }
+        if (g["hub"] !== undefined) body["hub"] = g["hub"];
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
         if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["network"] !== undefined) body["network"] = g["network"];
         if (g["providedActivationKey"] !== undefined) {
           body["providedActivationKey"] = g["providedActivationKey"];
+        }
+        if (g["pscRoutingEnabled"] !== undefined) {
+          body["pscRoutingEnabled"] = g["pscRoutingEnabled"];
         }
         if (g["remoteAccountId"] !== undefined) {
           body["remoteAccountId"] = g["remoteAccountId"];

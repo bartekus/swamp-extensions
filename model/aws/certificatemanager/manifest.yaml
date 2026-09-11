@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/certificatemanager"
-version: "2026.09.10.1"
+version: "2026.09.11.1"
 description: "AWS CERTIFICATEMANAGER infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -9,8 +9,6 @@ labels:
   - certificatemanager
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: acme_endpoint
 models:
   - account.ts
   - acme_domain_validation.ts

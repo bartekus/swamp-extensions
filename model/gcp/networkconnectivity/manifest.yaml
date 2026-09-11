@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/networkconnectivity"
-version: "2026.09.07.2"
+version: "2026.09.11.1"
 description: "Google Cloud networkconnectivity infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: global_hubs, global_hubs_groups, global_policybasedroutes, internalranges, spokes
+  - Updated: transports
 models:
   - automateddnsrecords.ts
   - global_hubs.ts

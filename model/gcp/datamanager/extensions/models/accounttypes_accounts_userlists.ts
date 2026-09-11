@@ -604,14 +604,6 @@ export const model = {
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
-      toVersion: "2026.07.21.1",
-      description: "Removed: sizeInfo",
-      upgradeAttributes: (old: Record<string, unknown>) => {
-        const { sizeInfo: _sizeInfo, ...rest } = old;
-        return rest;
-      },
-    },
-    {
       toVersion: "2026.07.21.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,

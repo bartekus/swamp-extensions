@@ -202,9 +202,14 @@ const TelemetryDestinationConfigurationSchema = z.object({
     "Telemetry parameters for WAF v2 Web ACL",
   ).optional(),
   LogDeliveryParameters: z.object({
-    LogTypes: z.array(z.enum(["SECURITY_FINDING_LOGS"])).describe(
-      "Types of logs to deliver",
-    ).optional(),
+    LogTypes: z.array(
+      z.enum([
+        "SECURITY_FINDING_LOGS",
+        "ALB_ACCESS_LOGS",
+        "ALB_CONNECTION_LOGS",
+        "ALB_HEALTH_CHECK_LOGS",
+      ]),
+    ).describe("Types of logs to deliver").optional(),
   }).describe("Parameters for log delivery configuration").optional(),
 });
 
@@ -385,7 +390,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ObservabilityAdmin OrganizationTelemetryRule. Registered at `@swamp/aws/observabilityadmin/organization-telemetry-rule`. */
 export const model = {
   type: "@swamp/aws/observabilityadmin/organization-telemetry-rule",
-  version: "2026.08.17.1",
+  version: "2026.09.11.1",
+  upgrades: [
+    {
+      toVersion: "2026.09.11.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

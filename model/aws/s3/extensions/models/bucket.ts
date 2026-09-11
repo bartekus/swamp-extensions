@@ -73,6 +73,8 @@ const InventoryConfigurationSchema = z.object({
       "ObjectLockRetainUntilDate",
       "ObjectLockMode",
       "ObjectLockLegalHoldStatus",
+      "ObjectLockEventHoldStatus",
+      "ObjectLockEventHoldDuration",
       "IntelligentTieringAccessTier",
       "BucketKeyStatus",
       "ChecksumAlgorithm",
@@ -192,6 +194,11 @@ const OwnershipControlsRuleSchema = z.object({
   ]).describe("Specifies an object ownership rule.").optional(),
 });
 
+const DefaultEventHoldSchema = z.object({
+  Years: z.number().int().optional(),
+  Days: z.number().int().optional(),
+});
+
 const DefaultRetentionSchema = z.object({
   Years: z.number().int().describe(
     "The number of years that you want to specify for the default retention period. If Object Lock is turned on, you must specify Mode and specify either Days or Years.",
@@ -202,6 +209,7 @@ const DefaultRetentionSchema = z.object({
   Mode: z.enum(["COMPLIANCE", "GOVERNANCE"]).describe(
     "The default Object Lock retention mode you want to apply to new objects placed in the specified bucket. If Object Lock is turned on, you must specify Mode and specify either Days or Years.",
   ).optional(),
+  DefaultEventHold: DefaultEventHoldSchema.optional(),
 });
 
 const ObjectLockRuleSchema = z.object({
@@ -1178,7 +1186,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for S3 Bucket. Registered at `@swamp/aws/s3/bucket`. */
 export const model = {
   type: "@swamp/aws/s3/bucket",
-  version: "2026.08.29.1",
+  version: "2026.09.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1247,6 +1255,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

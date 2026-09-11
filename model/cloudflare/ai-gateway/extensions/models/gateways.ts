@@ -47,6 +47,9 @@ const GlobalArgsSchema = z.object({
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
   authentication: z.boolean().optional(),
+  byok_only: z.boolean().describe(
+    "Requires customer-provided provider credentials and prevents fallback to Unified Billing.",
+  ).optional(),
   cache_invalidate_on_update: z.boolean(),
   cache_ttl: z.number().int().min(0),
   collect_logs: z.boolean(),
@@ -114,8 +117,8 @@ const GlobalArgsSchema = z.object({
   retry_backoff: z.enum(["constant", "linear", "exponential"]).describe(
     "Backoff strategy for retry delays",
   ).optional(),
-  retry_delay: z.number().int().min(0).max(5000).describe(
-    "Delay between retry attempts in milliseconds (0-5000)",
+  retry_delay: z.number().int().min(0).max(60000).describe(
+    "Delay between retry attempts in milliseconds (0-60000)",
   ).optional(),
   retry_max_attempts: z.number().int().min(1).max(5).describe(
     "Maximum number of retry attempts for failed requests (1-5)",
@@ -167,6 +170,7 @@ const GlobalArgsSchema = z.object({
 
 const ResourceSchema = z.object({
   authentication: z.boolean().optional(),
+  byok_only: z.boolean().optional(),
   cache_invalidate_on_update: z.boolean().optional(),
   cache_ttl: z.number().optional(),
   collect_logs: z.boolean().optional(),
@@ -274,6 +278,7 @@ const InputsSchema = z.object({
   account_id: z.string().optional(),
   name: z.string().optional(),
   authentication: z.boolean().optional(),
+  byok_only: z.boolean().optional(),
   cache_invalidate_on_update: z.boolean().optional(),
   cache_ttl: z.number().int().min(0).optional(),
   collect_logs: z.boolean().optional(),
@@ -339,7 +344,7 @@ const InputsSchema = z.object({
   rate_limiting_limit: z.number().int().min(0).optional(),
   rate_limiting_technique: z.enum(["fixed", "sliding"]).optional(),
   retry_backoff: z.enum(["constant", "linear", "exponential"]).optional(),
-  retry_delay: z.number().int().min(0).max(5000).optional(),
+  retry_delay: z.number().int().min(0).max(60000).optional(),
   retry_max_attempts: z.number().int().min(1).max(5).optional(),
   spend_limits: z.object({
     enabled: z.boolean().optional(),
@@ -381,7 +386,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Gateways. Registered at `@swamp/cloudflare/ai-gateway/gateways`. */
 export const model = {
   type: "@swamp/cloudflare/ai-gateway/gateways",
-  version: "2026.08.25.2",
+  version: "2026.09.11.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -428,6 +433,11 @@ export const model = {
       description: "Added: log_classification, spend_limits",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.11.1",
+      description: "Added: byok_only",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -450,6 +460,7 @@ export const model = {
         if (g.authentication !== undefined) {
           body.authentication = g.authentication;
         }
+        if (g.byok_only !== undefined) body.byok_only = g.byok_only;
         if (g.cache_invalidate_on_update !== undefined) {
           body.cache_invalidate_on_update = g.cache_invalidate_on_update;
         }
@@ -537,6 +548,9 @@ export const model = {
         const filters: [string, string][] = [];
         if (g.authentication !== undefined) {
           filters.push(["authentication", String(g.authentication)]);
+        }
+        if (g.byok_only !== undefined) {
+          filters.push(["byok_only", String(g.byok_only)]);
         }
         if (g.cache_invalidate_on_update !== undefined) {
           filters.push([
@@ -704,6 +718,7 @@ export const model = {
         if (g.authentication !== undefined) {
           body.authentication = g.authentication;
         }
+        if (g.byok_only !== undefined) body.byok_only = g.byok_only;
         if (g.cache_invalidate_on_update !== undefined) {
           body.cache_invalidate_on_update = g.cache_invalidate_on_update;
         }

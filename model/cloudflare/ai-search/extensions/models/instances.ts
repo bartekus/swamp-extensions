@@ -75,6 +75,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   indexing_options: z.object({
     keyword_tokenizer: z.enum(["porter", "trigram"]).optional(),
+    use_ocr: z.boolean().optional(),
   }).optional(),
   max_num_results: z.number().int().min(1).max(50).optional(),
   metadata: z.object({
@@ -202,6 +203,7 @@ const ResourceSchema = z.object({
   }).optional(),
   indexing_options: z.object({
     keyword_tokenizer: z.string().optional(),
+    use_ocr: z.boolean().optional(),
   }).optional(),
   last_activity: z.string().optional(),
   max_num_results: z.number().optional(),
@@ -311,6 +313,7 @@ const InputsSchema = z.object({
   }).optional(),
   indexing_options: z.object({
     keyword_tokenizer: z.enum(["porter", "trigram"]).optional(),
+    use_ocr: z.boolean().optional(),
   }).optional(),
   max_num_results: z.number().int().min(1).max(50).optional(),
   metadata: z.object({
@@ -403,7 +406,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Instances. Registered at `@swamp/cloudflare/ai-search/instances`. */
 export const model = {
   type: "@swamp/cloudflare/ai-search/instances",
-  version: "2026.09.03.1",
+  version: "2026.09.11.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -467,6 +470,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.03.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

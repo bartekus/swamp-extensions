@@ -159,7 +159,14 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Audit Manager Locations. Registered at `@swamp/gcp/auditmanager/locations`. */
 export const model = {
   type: "@swamp/gcp/auditmanager/locations",
-  version: "2026.09.09.1",
+  version: "2026.09.11.1",
+  upgrades: [
+    {
+      toVersion: "2026.09.11.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -327,6 +334,7 @@ export const model = {
       description: "enroll resource",
       arguments: z.object({
         destinations: z.any().optional(),
+        validateOnly: z.any().optional(),
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
@@ -352,6 +360,9 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (args["destinations"] !== undefined) {
           body["destinations"] = args["destinations"];
+        }
+        if (args["validateOnly"] !== undefined) {
+          body["validateOnly"] = args["validateOnly"];
         }
         const result = await createResource(
           baseUrl,

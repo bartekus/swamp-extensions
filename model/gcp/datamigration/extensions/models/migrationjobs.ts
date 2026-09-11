@@ -314,8 +314,15 @@ const GlobalArgsSchema = z.object({
       "OPTIMAL",
       "MAX",
     ]).describe("Initial dump parallelism level.").optional(),
-  }).describe("Optional. Data dump parallelism settings used by the migration.")
-    .optional(),
+    loadParallelLevel: z.enum([
+      "LOAD_PARALLEL_LEVEL_UNSPECIFIED",
+      "LOAD_MIN",
+      "LOAD_OPTIMAL",
+      "LOAD_MAX",
+    ]).describe("Optional. Initial load parallelism level.").optional(),
+  }).describe(
+    "Optional. Data dump and load parallelism settings used by the migration.",
+  ).optional(),
   postgresHomogeneousConfig: z.object({
     isNativeLogical: z.boolean().describe(
       "Required. Whether the migration is native logical.",
@@ -559,6 +566,7 @@ const StateSchema = z.object({
   originalMigrationName: z.string().optional(),
   performanceConfig: z.object({
     dumpParallelLevel: z.string(),
+    loadParallelLevel: z.string(),
   }).optional(),
   phase: z.string().optional(),
   postgresHomogeneousConfig: z.object({
@@ -773,8 +781,15 @@ const InputsSchema = z.object({
       "OPTIMAL",
       "MAX",
     ]).describe("Initial dump parallelism level.").optional(),
-  }).describe("Optional. Data dump parallelism settings used by the migration.")
-    .optional(),
+    loadParallelLevel: z.enum([
+      "LOAD_PARALLEL_LEVEL_UNSPECIFIED",
+      "LOAD_MIN",
+      "LOAD_OPTIMAL",
+      "LOAD_MAX",
+    ]).describe("Optional. Initial load parallelism level.").optional(),
+  }).describe(
+    "Optional. Data dump and load parallelism settings used by the migration.",
+  ).optional(),
   postgresHomogeneousConfig: z.object({
     isNativeLogical: z.boolean().describe(
       "Required. Whether the migration is native logical.",
@@ -974,7 +989,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Database Migration MigrationJobs. Registered at `@swamp/gcp/datamigration/migrationjobs`. */
 export const model = {
   type: "@swamp/gcp/datamigration/migrationjobs",
-  version: "2026.09.07.2",
+  version: "2026.09.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1186,6 +1201,11 @@ export const model = {
         } = old;
         return rest;
       },
+    },
+    {
+      toVersion: "2026.09.11.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   globalArguments: GlobalArgsSchema,

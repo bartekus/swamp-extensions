@@ -61,12 +61,22 @@ const GlobalArgsSchema = z.object({
   Tags: z.record(z.string(), z.string().min(0).max(256)).describe(
     "A key-value pair to associate with the Security Hub V2 resource. You can specify a key that is 1 to 128 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -.",
   ).optional(),
+  NetworkScanning: z.object({
+    Status: z.enum(["ENABLED", "DISABLED"]).describe(
+      "Whether the Network Scanning feature is enabled for this account and Region.",
+    ),
+  }).describe(
+    "Configuration for the Network Scanning opt-in feature of Security Hub V2. Network Scanning is available in the AWS commercial partition only; specifying this property in another partition, such as AWS GovCloud (US) or China, fails. This property is desired state: if you remove it from a stack that previously set it, the feature is disabled. If a stack has never set it, the feature is left as-is, so a stack that does not manage Network Scanning will not disable it. Network Scanning requires Security Hub V2 to be enabled in the same account and Region.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
   HubV2Arn: z.string(),
   SubscribedAt: z.string().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
+  NetworkScanning: z.object({
+    Status: z.string(),
+  }).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -79,6 +89,13 @@ const InputsSchema = z.object({
   region: z.string().optional(),
   Tags: z.record(z.string(), z.string().min(0).max(256)).describe(
     "A key-value pair to associate with the Security Hub V2 resource. You can specify a key that is 1 to 128 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -.",
+  ).optional(),
+  NetworkScanning: z.object({
+    Status: z.enum(["ENABLED", "DISABLED"]).describe(
+      "Whether the Network Scanning feature is enabled for this account and Region.",
+    ).optional(),
+  }).describe(
+    "Configuration for the Network Scanning opt-in feature of Security Hub V2. Network Scanning is available in the AWS commercial partition only; specifying this property in another partition, such as AWS GovCloud (US) or China, fails. This property is desired state: if you remove it from a stack that previously set it, the feature is disabled. If a stack has never set it, the feature is left as-is, so a stack that does not manage Network Scanning will not disable it. Network Scanning requires Security Hub V2 to be enabled in the same account and Region.",
   ).optional(),
 });
 
@@ -101,7 +118,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SecurityHub HubV2. Registered at `@swamp/aws/securityhub/hub-v2`. */
 export const model = {
   type: "@swamp/aws/securityhub/hub-v2",
-  version: "2026.08.17.2",
+  version: "2026.09.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -151,6 +168,11 @@ export const model = {
     {
       toVersion: "2026.08.17.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.11.1",
+      description: "Added: NetworkScanning",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

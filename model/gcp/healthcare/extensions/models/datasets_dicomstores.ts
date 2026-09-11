@@ -348,7 +348,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Healthcare Datasets.DicomStores. Registered at `@swamp/gcp/healthcare/datasets-dicomstores`. */
 export const model = {
   type: "@swamp/gcp/healthcare/datasets-dicomstores",
-  version: "2026.09.07.2",
+  version: "2026.09.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -504,6 +504,11 @@ export const model = {
         } = old;
         return rest;
       },
+    },
+    {
+      toVersion: "2026.09.11.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   globalArguments: GlobalArgsSchema,
@@ -909,6 +914,7 @@ export const model = {
       description: "export",
       arguments: z.object({
         bigqueryDestination: z.any().optional(),
+        filterConfig: z.any().optional(),
         gcsDestination: z.any().optional(),
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
@@ -927,6 +933,9 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (args["bigqueryDestination"] !== undefined) {
           body["bigqueryDestination"] = args["bigqueryDestination"];
+        }
+        if (args["filterConfig"] !== undefined) {
+          body["filterConfig"] = args["filterConfig"];
         }
         if (args["gcsDestination"] !== undefined) {
           body["gcsDestination"] = args["gcsDestination"];

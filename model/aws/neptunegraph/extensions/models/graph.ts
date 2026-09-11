@@ -42,6 +42,27 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
+const NeptuneImportOptionsSchema = z.object({
+  PreserveDefaultVertexLabels: z.boolean().describe(
+    "Neptune Analytics supports label-less vertices and no labels are assigned unless one is explicitly provided. Neptune assigns default labels when none is explicitly provided. When importing the data into Neptune Analytics, the default vertex labels can be omitted by setting preserveDefaultVertexLabels to false. Note that if the vertex only has default labels, and has no other properties or edges, then the vertex will effectively not get imported into Neptune Analytics when preserveDefaultVertexLabels is set to false.",
+  ).optional(),
+  S3ExportKmsKeyId: z.string().min(1).max(1024).describe(
+    "The KMS key to use to encrypt data in the S3 bucket where the graph data is exported.",
+  ),
+  S3ExportPath: z.string().min(1).max(1024).describe(
+    "The path to an S3 bucket from which to import data.",
+  ),
+  PreserveEdgeIds: z.boolean().describe(
+    "Neptune Analytics currently does not support user defined edge ids. The edge ids are not imported by default. They are imported if preserveEdgeIds is set to true, and ids are stored as properties on the relationships with the property name neptuneEdgeId.",
+  ).optional(),
+});
+
+const ImportOptionsSchema = z.object({
+  Neptune: NeptuneImportOptionsSchema.describe(
+    "Options for importing data from a Neptune database.",
+  ).optional(),
+});
+
 const TagSchema = z.object({
   Value: z.string().min(0).max(256).describe(
     "The value for the tag. You can specify a value that is 0 to 256 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -.",
@@ -72,7 +93,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   KmsKeyIdentifier: z.string().min(1).max(1024).regex(
     new RegExp(
-      "arn:aws(|-cn|-us-gov):kms:[a-zA-Z0-9-]*:[0-9]{12}:key/[a-zA-Z0-9-]{36}",
+      "arn:aws(|-cn|-us-gov|-iso|-iso-b|-iso-e|-iso-f|-eusc):kms:[a-zA-Z0-9-]*:[0-9]{12}:key/[a-zA-Z0-9-]{36}",
     ),
   ).describe(
     "The ARN of the KMS key used to encrypt data in the Neptune Analytics graph. If not specified, the graph is encrypted with an AWS managed key.",
@@ -81,6 +102,41 @@ const GlobalArgsSchema = z.object({
     new RegExp("^[a-zA-z][a-zA-Z0-9]*(-[a-zA-Z0-9]+)*$"),
   ).describe(
     "Contains a user-supplied name for the Graph. If you don't specify a name, we generate a unique Graph Name using a combination of Stack Name and a UUID comprising of 4 characters. _Important_: If you specify a name, you cannot perform updates that require replacement of this resource. You can perform updates that require no or some interruption. If you must replace the resource, specify a new name.",
+  ).optional(),
+  ImportTask: z.object({
+    Format: z.enum(["CSV", "OPEN_CYPHER", "PARQUET", "NTRIPLES"]).describe(
+      "Specifies the format of S3 data to be imported. Valid values are CSV, which identifies the Gremlin CSV format, OPEN_CYPHER, which identifies the openCypher load format, or NTRIPLES, which identifies the RDF n-triples format.",
+    ).optional(),
+    BlankNodeHandling: z.enum(["convertToIri"]).describe(
+      "The method to handle blank nodes in the dataset. Currently, only convertToIri is supported, meaning blank nodes are converted to unique IRIs at load time. Must be provided when format is NTRIPLES",
+    ).optional(),
+    ParquetType: z.enum(["COLUMNAR"]).describe(
+      "The parquet type of the import task. Required when Format is PARQUET.",
+    ).optional(),
+    FailOnError: z.boolean().describe(
+      "If set to true, the task halts when an import error is encountered. If set to false, the task skips the data that caused the error and continues if possible.",
+    ).optional(),
+    MaxProvisionedMemory: z.number().int().min(16).max(24576).describe(
+      "The maximum provisioned memory-optimized Neptune Capacity Units (m-NCUs) to use for the graph. Default: 1024, or the approved upper limit for your account. If both the minimum and maximum values are specified, the final provisioned-memory will be chosen per the actual size of your imported data. If neither value is specified, 128 m-NCUs are used.",
+    ).optional(),
+    Source: z.string().describe(
+      "A URL identifying to the location of the data to be imported. This can be an Amazon S3 path, or can point to a Neptune database endpoint or snapshot.",
+    ),
+    RoleArn: z.string().min(1).max(1024).regex(
+      new RegExp(
+        "arn:aws[^:]*:iam::[0-9]{12}:(role|role/service-role)(/[\\w+=,.@-]+)+",
+      ),
+    ).describe(
+      "The ARN of the IAM role that will allow access to the data that is to be imported.",
+    ),
+    ImportOptions: ImportOptionsSchema.describe(
+      "Contains options for controlling the import process. For example, if the failOnError key is set to false, the import skips the data that caused the error and continues if possible (whereas if set to true, the default, or if omitted, the import operation halts immediately when an error is encountered).",
+    ).optional(),
+    MinProvisionedMemory: z.number().int().min(16).max(24576).describe(
+      "The minimum provisioned memory-optimized Neptune Capacity Units (m-NCUs) to use for the graph. Default: 16",
+    ).optional(),
+  }).describe(
+    "The details of the import task to use to create the graph. When specified, the graph is created using CreateGraphUsingImportTask and data is imported from the supplied source.",
   ).optional(),
   ReplicaCount: z.number().int().describe(
     "Specifies the number of replicas you want when finished. All replicas will be provisioned in different availability zones. Replica Count should always be less than or equal to 2. _Default_: If not specified, the default value is 1.",
@@ -102,6 +158,17 @@ const StateSchema = z.object({
   PublicConnectivity: z.boolean().optional(),
   KmsKeyIdentifier: z.string().optional(),
   GraphName: z.string().optional(),
+  ImportTask: z.object({
+    Format: z.string(),
+    BlankNodeHandling: z.string(),
+    ParquetType: z.string(),
+    FailOnError: z.boolean(),
+    MaxProvisionedMemory: z.number(),
+    Source: z.string(),
+    RoleArn: z.string(),
+    ImportOptions: ImportOptionsSchema,
+    MinProvisionedMemory: z.number(),
+  }).optional(),
   Endpoint: z.string().optional(),
   GraphArn: z.string().optional(),
   ReplicaCount: z.number().optional(),
@@ -127,7 +194,7 @@ const InputsSchema = z.object({
   ).optional(),
   KmsKeyIdentifier: z.string().min(1).max(1024).regex(
     new RegExp(
-      "arn:aws(|-cn|-us-gov):kms:[a-zA-Z0-9-]*:[0-9]{12}:key/[a-zA-Z0-9-]{36}",
+      "arn:aws(|-cn|-us-gov|-iso|-iso-b|-iso-e|-iso-f|-eusc):kms:[a-zA-Z0-9-]*:[0-9]{12}:key/[a-zA-Z0-9-]{36}",
     ),
   ).describe(
     "The ARN of the KMS key used to encrypt data in the Neptune Analytics graph. If not specified, the graph is encrypted with an AWS managed key.",
@@ -136,6 +203,41 @@ const InputsSchema = z.object({
     new RegExp("^[a-zA-z][a-zA-Z0-9]*(-[a-zA-Z0-9]+)*$"),
   ).describe(
     "Contains a user-supplied name for the Graph. If you don't specify a name, we generate a unique Graph Name using a combination of Stack Name and a UUID comprising of 4 characters. _Important_: If you specify a name, you cannot perform updates that require replacement of this resource. You can perform updates that require no or some interruption. If you must replace the resource, specify a new name.",
+  ).optional(),
+  ImportTask: z.object({
+    Format: z.enum(["CSV", "OPEN_CYPHER", "PARQUET", "NTRIPLES"]).describe(
+      "Specifies the format of S3 data to be imported. Valid values are CSV, which identifies the Gremlin CSV format, OPEN_CYPHER, which identifies the openCypher load format, or NTRIPLES, which identifies the RDF n-triples format.",
+    ).optional(),
+    BlankNodeHandling: z.enum(["convertToIri"]).describe(
+      "The method to handle blank nodes in the dataset. Currently, only convertToIri is supported, meaning blank nodes are converted to unique IRIs at load time. Must be provided when format is NTRIPLES",
+    ).optional(),
+    ParquetType: z.enum(["COLUMNAR"]).describe(
+      "The parquet type of the import task. Required when Format is PARQUET.",
+    ).optional(),
+    FailOnError: z.boolean().describe(
+      "If set to true, the task halts when an import error is encountered. If set to false, the task skips the data that caused the error and continues if possible.",
+    ).optional(),
+    MaxProvisionedMemory: z.number().int().min(16).max(24576).describe(
+      "The maximum provisioned memory-optimized Neptune Capacity Units (m-NCUs) to use for the graph. Default: 1024, or the approved upper limit for your account. If both the minimum and maximum values are specified, the final provisioned-memory will be chosen per the actual size of your imported data. If neither value is specified, 128 m-NCUs are used.",
+    ).optional(),
+    Source: z.string().describe(
+      "A URL identifying to the location of the data to be imported. This can be an Amazon S3 path, or can point to a Neptune database endpoint or snapshot.",
+    ).optional(),
+    RoleArn: z.string().min(1).max(1024).regex(
+      new RegExp(
+        "arn:aws[^:]*:iam::[0-9]{12}:(role|role/service-role)(/[\\w+=,.@-]+)+",
+      ),
+    ).describe(
+      "The ARN of the IAM role that will allow access to the data that is to be imported.",
+    ).optional(),
+    ImportOptions: ImportOptionsSchema.describe(
+      "Contains options for controlling the import process. For example, if the failOnError key is set to false, the import skips the data that caused the error and continues if possible (whereas if set to true, the default, or if omitted, the import operation halts immediately when an error is encountered).",
+    ).optional(),
+    MinProvisionedMemory: z.number().int().min(16).max(24576).describe(
+      "The minimum provisioned memory-optimized Neptune Capacity Units (m-NCUs) to use for the graph. Default: 16",
+    ).optional(),
+  }).describe(
+    "The details of the import task to use to create the graph. When specified, the graph is created using CreateGraphUsingImportTask and data is imported from the supplied source.",
   ).optional(),
   ReplicaCount: z.number().int().describe(
     "Specifies the number of replicas you want when finished. All replicas will be provisioned in different availability zones. Replica Count should always be less than or equal to 2. _Default_: If not specified, the default value is 1.",
@@ -173,7 +275,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for NeptuneGraph Graph. Registered at `@swamp/aws/neptunegraph/graph`. */
 export const model = {
   type: "@swamp/aws/neptunegraph/graph",
-  version: "2026.08.17.2",
+  version: "2026.09.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -228,6 +330,11 @@ export const model = {
     {
       toVersion: "2026.08.17.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.11.1",
+      description: "Added: ImportTask",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -340,6 +447,7 @@ export const model = {
           [
             "GraphName",
             "ReplicaCount",
+            "ImportTask",
             "VectorSearchConfiguration",
             "KmsKeyIdentifier",
           ],

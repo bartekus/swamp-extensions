@@ -67,7 +67,9 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Build and deploy settings when creating a Worker build configuration",
   ),
-  script_tag: z.string().describe("System-generated worker script tag."),
+  script_tag: z.string().describe(
+    "System-generated tag of the Worker. This is not the Worker name.",
+  ),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -136,7 +138,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Workers. Registered at `@swamp/cloudflare/builds/workers`. */
 export const model = {
   type: "@swamp/cloudflare/builds/workers",
-  version: "2026.09.04.1",
+  version: "2026.09.11.1",
   upgrades: [
     {
       toVersion: "2026.07.18.1",
@@ -155,6 +157,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.04.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -63,6 +63,7 @@ const GlobalArgsSchema = z.object({
   })).optional(),
   consumers_total_count: z.number().optional(),
   created_on: z.string().optional(),
+  jurisdiction: z.enum(["eu", "us", "fedramp"]).optional(),
   modified_on: z.string().optional(),
   producers: z.array(z.object({
     script: z.string().optional(),
@@ -106,6 +107,7 @@ const ResourceSchema = z.object({
   })).optional(),
   consumers_total_count: z.number().optional(),
   created_on: z.string().optional(),
+  jurisdiction: z.string().optional(),
   modified_on: z.string().optional(),
   producers: z.array(z.object({
     script: z.string().optional(),
@@ -145,6 +147,7 @@ const InputsSchema = z.object({
   })).optional(),
   consumers_total_count: z.number().optional(),
   created_on: z.string().optional(),
+  jurisdiction: z.enum(["eu", "us", "fedramp"]).optional(),
   modified_on: z.string().optional(),
   producers: z.array(z.object({
     script: z.string().optional(),
@@ -167,7 +170,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Queues. Registered at `@swamp/cloudflare/queues/queues`. */
 export const model = {
   type: "@swamp/cloudflare/queues/queues",
-  version: "2026.08.11.1",
+  version: "2026.09.11.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -194,6 +197,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.11.1",
+      description: "Added: jurisdiction",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -213,6 +221,7 @@ export const model = {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id + "/queues";
         const body: Record<string, unknown> = {};
+        if (g.jurisdiction !== undefined) body.jurisdiction = g.jurisdiction;
         if (g.queue_name !== undefined) body.queue_name = g.queue_name;
         const result = await create(endpoint, body, {
           apiToken: g.apiToken,
@@ -270,6 +279,9 @@ export const model = {
         }
         if (g.created_on !== undefined) {
           filters.push(["created_on", String(g.created_on)]);
+        }
+        if (g.jurisdiction !== undefined) {
+          filters.push(["jurisdiction", String(g.jurisdiction)]);
         }
         if (g.modified_on !== undefined) {
           filters.push(["modified_on", String(g.modified_on)]);
@@ -388,6 +400,7 @@ export const model = {
           body.consumers_total_count = g.consumers_total_count;
         }
         if (g.created_on !== undefined) body.created_on = g.created_on;
+        if (g.jurisdiction !== undefined) body.jurisdiction = g.jurisdiction;
         if (g.modified_on !== undefined) body.modified_on = g.modified_on;
         if (g.producers !== undefined) body.producers = g.producers;
         if (g.producers_total_count !== undefined) {

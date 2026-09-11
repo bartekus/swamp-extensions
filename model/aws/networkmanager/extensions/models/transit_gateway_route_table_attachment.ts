@@ -185,7 +185,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for NetworkManager TransitGatewayRouteTableAttachment. Registered at `@swamp/aws/networkmanager/transit-gateway-route-table-attachment`. */
 export const model = {
   type: "@swamp/aws/networkmanager/transit-gateway-route-table-attachment",
-  version: "2026.08.26.1",
+  version: "2026.09.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -254,6 +254,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -365,7 +370,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["PeeringId", "TransitGatewayRouteTableArn", "RoutingPolicyLabel"],
+          ["PeeringId", "TransitGatewayRouteTableArn"],
           credentials,
         );
         const handle = await context.writeResource(

@@ -448,6 +448,16 @@ const GlobalArgsSchema = z.object({
     port: z.number().int().describe(
       "Required. The network port of the source MySQL database.",
     ).optional(),
+    privateConnectivity: z.object({
+      privateConnection: z.string().describe(
+        "Required. The resource name (URI) of the private connection.",
+      ).optional(),
+    }).describe("Private connectivity.").optional(),
+    privateServiceConnectConnectivity: z.object({
+      serviceAttachment: z.string().describe(
+        "Required. A service attachment that exposes a database, and has the following format: projects/{project}/regions/{region}/serviceAttachments/{service_attachment_name}",
+      ).optional(),
+    }).describe("Private Service Connect connectivity.").optional(),
     ssl: z.object({
       caCertificate: z.string().describe(
         "Required. Input only. The x509 PEM-encoded certificate of the CA that signed the source database server's certificate. The replica will use this certificate to verify it's connecting to the right host.",
@@ -472,6 +482,9 @@ const GlobalArgsSchema = z.object({
       ).optional(),
     }).describe(
       "SSL configuration for the destination to connect to the source database.",
+    ).optional(),
+    staticServiceIpConnectivity: z.object({}).describe(
+      "Static Service IP connectivity.",
     ).optional(),
     username: z.string().describe(
       "Required. The username that Database Migration Service will use to connect to the database. The value is encrypted when stored in Database Migration Service.",
@@ -643,7 +656,7 @@ const GlobalArgsSchema = z.object({
       serviceAttachment: z.string().describe(
         "Required. A service attachment that exposes a database, and has the following format: projects/{project}/regions/{region}/serviceAttachments/{service_attachment_name}",
       ).optional(),
-    }).describe("Private service connect connectivity.").optional(),
+    }).describe("Private Service Connect connectivity.").optional(),
     ssl: z.object({
       caCertificate: z.string().describe(
         "Required. Input only. The x509 PEM-encoded certificate of the CA that signed the source database server's certificate. The replica will use this certificate to verify it's connecting to the right host.",
@@ -893,6 +906,12 @@ const StateSchema = z.object({
     password: z.string(),
     passwordSet: z.boolean(),
     port: z.number(),
+    privateConnectivity: z.object({
+      privateConnection: z.string(),
+    }),
+    privateServiceConnectConnectivity: z.object({
+      serviceAttachment: z.string(),
+    }),
     ssl: z.object({
       caCertificate: z.string(),
       clientCertificate: z.string(),
@@ -900,6 +919,7 @@ const StateSchema = z.object({
       sslFlags: z.record(z.string(), z.unknown()),
       type: z.string(),
     }),
+    staticServiceIpConnectivity: z.object({}),
     username: z.string(),
   }).optional(),
   name: z.string(),
@@ -1290,6 +1310,16 @@ const InputsSchema = z.object({
     port: z.number().int().describe(
       "Required. The network port of the source MySQL database.",
     ).optional(),
+    privateConnectivity: z.object({
+      privateConnection: z.string().describe(
+        "Required. The resource name (URI) of the private connection.",
+      ).optional(),
+    }).describe("Private connectivity.").optional(),
+    privateServiceConnectConnectivity: z.object({
+      serviceAttachment: z.string().describe(
+        "Required. A service attachment that exposes a database, and has the following format: projects/{project}/regions/{region}/serviceAttachments/{service_attachment_name}",
+      ).optional(),
+    }).describe("Private Service Connect connectivity.").optional(),
     ssl: z.object({
       caCertificate: z.string().describe(
         "Required. Input only. The x509 PEM-encoded certificate of the CA that signed the source database server's certificate. The replica will use this certificate to verify it's connecting to the right host.",
@@ -1314,6 +1344,9 @@ const InputsSchema = z.object({
       ).optional(),
     }).describe(
       "SSL configuration for the destination to connect to the source database.",
+    ).optional(),
+    staticServiceIpConnectivity: z.object({}).describe(
+      "Static Service IP connectivity.",
     ).optional(),
     username: z.string().describe(
       "Required. The username that Database Migration Service will use to connect to the database. The value is encrypted when stored in Database Migration Service.",
@@ -1485,7 +1518,7 @@ const InputsSchema = z.object({
       serviceAttachment: z.string().describe(
         "Required. A service attachment that exposes a database, and has the following format: projects/{project}/regions/{region}/serviceAttachments/{service_attachment_name}",
       ).optional(),
-    }).describe("Private service connect connectivity.").optional(),
+    }).describe("Private Service Connect connectivity.").optional(),
     ssl: z.object({
       caCertificate: z.string().describe(
         "Required. Input only. The x509 PEM-encoded certificate of the CA that signed the source database server's certificate. The replica will use this certificate to verify it's connecting to the right host.",
@@ -1670,7 +1703,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Database Migration ConnectionProfiles. Registered at `@swamp/gcp/datamigration/connectionprofiles`. */
 export const model = {
   type: "@swamp/gcp/datamigration/connectionprofiles",
-  version: "2026.09.07.2",
+  version: "2026.09.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1911,6 +1944,11 @@ export const model = {
         } = old;
         return rest;
       },
+    },
+    {
+      toVersion: "2026.09.11.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   globalArguments: GlobalArgsSchema,

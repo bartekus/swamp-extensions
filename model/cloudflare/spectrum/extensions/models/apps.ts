@@ -46,9 +46,9 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
-  created_on: z.string().describe("When the Application was created."),
+  created_on: z.string(),
   id: z.string().describe("Identifier."),
-  modified_on: z.string().describe("When the Application was last modified."),
+  modified_on: z.string(),
   argo_smart_routing: z.boolean().describe(
     'Enables Argo Smart Routing for this application.\nNotes: Only available for TCP or UDP applications with traffic_type set to "direct".',
   ).optional(),
@@ -188,7 +188,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Apps. Registered at `@swamp/cloudflare/spectrum/apps`. */
 export const model = {
   type: "@swamp/cloudflare/spectrum/apps",
-  version: "2026.08.25.2",
+  version: "2026.09.11.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -227,6 +227,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.25.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

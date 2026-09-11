@@ -88,6 +88,9 @@ const GlobalArgsSchema = z.object({
     value: z.string().max(10000),
   })).optional(),
   name: z.string().min(1).max(255),
+  status: z.enum(["silent", "blocking"]).describe(
+    "Disposition for matching email. This emits status metadata with the selected value.",
+  ).optional(),
   strings: z.array(z.object({
     identifier: z.string().min(1).max(128).regex(
       new RegExp("^[a-zA-Z_][a-zA-Z0-9_]*$"),
@@ -186,6 +189,7 @@ const InputsSchema = z.object({
     value: z.string().max(10000),
   })).optional(),
   name: z.string().min(1).max(255).optional(),
+  status: z.enum(["silent", "blocking"]).optional(),
   strings: z.array(z.object({
     identifier: z.string().min(1).max(128).regex(
       new RegExp("^[a-zA-Z_][a-zA-Z0-9_]*$"),
@@ -204,11 +208,16 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Structured. Registered at `@swamp/cloudflare/cloudforce-one/structured`. */
 export const model = {
   type: "@swamp/cloudflare/cloudforce-one/structured",
-  version: "2026.08.27.1",
+  version: "2026.09.11.1",
   upgrades: [
     {
       toVersion: "2026.08.27.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.11.1",
+      description: "Added: status",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -236,6 +245,7 @@ export const model = {
         if (g.enabled !== undefined) body.enabled = g.enabled;
         if (g.meta !== undefined) body.meta = g.meta;
         if (g.name !== undefined) body.name = g.name;
+        if (g.status !== undefined) body.status = g.status;
         if (g.strings !== undefined) body.strings = g.strings;
         const result = await create(endpoint, body, {
           apiToken: g.apiToken,
@@ -296,6 +306,7 @@ export const model = {
           filters.push(["enabled", String(g.enabled)]);
         }
         if (g.name !== undefined) filters.push(["name", String(g.name)]);
+        if (g.status !== undefined) filters.push(["status", String(g.status)]);
         if (filters.length === 0) {
           throw new Error(
             "At least one global argument must be set to filter by",
@@ -403,6 +414,7 @@ export const model = {
         if (g.enabled !== undefined) body.enabled = g.enabled;
         if (g.meta !== undefined) body.meta = g.meta;
         if (g.name !== undefined) body.name = g.name;
+        if (g.status !== undefined) body.status = g.status;
         if (g.strings !== undefined) body.strings = g.strings;
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,

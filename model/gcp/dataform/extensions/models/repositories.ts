@@ -173,6 +173,17 @@ const GlobalArgsSchema = z.object({
   displayName: z.string().describe(
     "Optional. The repository's user-friendly name.",
   ).optional(),
+  endUserAuthConfig: z.object({
+    oauthConfig: z.object({
+      additionalOauthScopes: z.array(z.string()).describe(
+        "Optional. Additional OAuth scopes to use for BigQuery executions. Scopes always in use: `https://www.googleapis.com/auth/bigquery`",
+      ).optional(),
+    }).describe(
+      "Optional. OAuth configuration for repository end user authentication.",
+    ).optional(),
+  }).describe(
+    "Optional. Includes configuration options for end user authentication.",
+  ).optional(),
   gitRemoteSettings: z.object({
     authenticationTokenSecretVersion: z.string().describe(
       "Optional. The name of the Secret Manager secret version to use as an authentication token for Git operations. Must be in the format `projects/*/secrets/*/versions/*`.",
@@ -252,6 +263,11 @@ const StateSchema = z.object({
     kmsKeyVersionName: z.string(),
   }).optional(),
   displayName: z.string().optional(),
+  endUserAuthConfig: z.object({
+    oauthConfig: z.object({
+      additionalOauthScopes: z.array(z.string()),
+    }),
+  }).optional(),
   gitRemoteSettings: z.object({
     authenticationTokenSecretVersion: z.string(),
     defaultBranch: z.string(),
@@ -293,6 +309,17 @@ const InputsSchema = z.object({
   ).optional(),
   displayName: z.string().describe(
     "Optional. The repository's user-friendly name.",
+  ).optional(),
+  endUserAuthConfig: z.object({
+    oauthConfig: z.object({
+      additionalOauthScopes: z.array(z.string()).describe(
+        "Optional. Additional OAuth scopes to use for BigQuery executions. Scopes always in use: `https://www.googleapis.com/auth/bigquery`",
+      ).optional(),
+    }).describe(
+      "Optional. OAuth configuration for repository end user authentication.",
+    ).optional(),
+  }).describe(
+    "Optional. Includes configuration options for end user authentication.",
   ).optional(),
   gitRemoteSettings: z.object({
     authenticationTokenSecretVersion: z.string().describe(
@@ -392,7 +419,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataform Repositories. Registered at `@swamp/gcp/dataform/repositories`. */
 export const model = {
   type: "@swamp/gcp/dataform/repositories",
-  version: "2026.09.07.2",
+  version: "2026.09.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -605,6 +632,11 @@ export const model = {
         return rest;
       },
     },
+    {
+      toVersion: "2026.09.11.1",
+      description: "Added: endUserAuthConfig",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -636,6 +668,9 @@ export const model = {
         }
         if (g["displayName"] !== undefined) {
           body["displayName"] = g["displayName"];
+        }
+        if (g["endUserAuthConfig"] !== undefined) {
+          body["endUserAuthConfig"] = g["endUserAuthConfig"];
         }
         if (g["gitRemoteSettings"] !== undefined) {
           body["gitRemoteSettings"] = g["gitRemoteSettings"];
@@ -772,6 +807,9 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g["displayName"] !== undefined) {
           body["displayName"] = g["displayName"];
+        }
+        if (g["endUserAuthConfig"] !== undefined) {
+          body["endUserAuthConfig"] = g["endUserAuthConfig"];
         }
         if (g["gitRemoteSettings"] !== undefined) {
           body["gitRemoteSettings"] = g["gitRemoteSettings"];

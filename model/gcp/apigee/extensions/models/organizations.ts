@@ -462,7 +462,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Apigee Organizations. Registered at `@swamp/gcp/apigee/organizations`. */
 export const model = {
   type: "@swamp/gcp/apigee/organizations",
-  version: "2026.09.07.1",
+  version: "2026.09.11.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -596,6 +596,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.11.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1303,6 +1308,7 @@ export const model = {
         analyticsPublisherIdentities: z.any().optional(),
         name: z.any().optional(),
         synchronizerIdentities: z.any().optional(),
+        watcherIdentities: z.any().optional(),
         updateMask: z.any().optional(),
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
@@ -1324,6 +1330,9 @@ export const model = {
         if (args["name"] !== undefined) body["name"] = args["name"];
         if (args["synchronizerIdentities"] !== undefined) {
           body["synchronizerIdentities"] = args["synchronizerIdentities"];
+        }
+        if (args["watcherIdentities"] !== undefined) {
+          body["watcherIdentities"] = args["watcherIdentities"];
         }
         const result = await createResource(
           baseUrl,

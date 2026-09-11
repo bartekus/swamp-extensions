@@ -79,9 +79,8 @@ const GlobalArgsSchema = z.object({
     "Authentication method used to connect to the upstream MCP server.",
   ),
   hostname: z.string().describe("URL of the upstream MCP endpoint."),
-  id: z.string().min(1).max(32).regex(
-    new RegExp("^[a-z0-9_]+(?:-[a-z0-9_]+)*$"),
-  ).describe("Unique identifier for the MCP server."),
+  id: z.string().min(1).max(32).regex(new RegExp("^[a-z0-9]+(?:-[a-z0-9]+)*$"))
+    .describe("Unique identifier for the MCP server."),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -179,9 +178,8 @@ const InputsSchema = z.object({
   })).optional(),
   auth_type: z.enum(["oauth", "bearer", "unauthenticated"]).optional(),
   hostname: z.string().optional(),
-  id: z.string().min(1).max(32).regex(
-    new RegExp("^[a-z0-9_]+(?:-[a-z0-9_]+)*$"),
-  ).optional(),
+  id: z.string().min(1).max(32).regex(new RegExp("^[a-z0-9]+(?:-[a-z0-9]+)*$"))
+    .optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
   apiKey: z.string().meta({ sensitive: true }).optional(),
   email: z.string().meta({ sensitive: true }).optional(),
@@ -190,7 +188,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Servers. Registered at `@swamp/cloudflare/access/servers`. */
 export const model = {
   type: "@swamp/cloudflare/access/servers",
-  version: "2026.08.25.2",
+  version: "2026.09.11.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -240,6 +238,11 @@ export const model = {
     {
       toVersion: "2026.08.25.2",
       description: "Added: client_secret, secure_web_gateway",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.11.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

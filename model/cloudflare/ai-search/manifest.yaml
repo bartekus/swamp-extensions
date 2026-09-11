@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/cloudflare/ai-search"
-version: "2026.09.03.1"
+version: "2026.09.11.1"
 description: "Cloudflare ai-search infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
