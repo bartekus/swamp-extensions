@@ -1789,13 +1789,63 @@ export class GcsCacheSyncService implements DatastoreSyncService {
 
           const metadataOnly = !!options?.metadataOnly;
 
+          // Bulk-diff: fetch a remote listing to know which files
+          // actually exist, pruning stale index entries without per-file
+          // getObject 404s — O(files/1000) list calls instead of
+          // O(files) round-trips (swamp-club #2033).
+          //
+          // List the full prefix (not just namespace) so root-level files
+          // from pre-namespace pushes are captured — pullFile falls back
+          // to root keys when the namespaced key is 404.
+          //
+          // On listing failure (permissions, network), fall back to the
+          // pre-#2033 per-file behavior — no pruning, 404s discovered
+          // during download.
+          const listStart = Date.now();
+          const listNsPrefix = this.namespace ? `${this.namespace}/` : "";
+          let remoteKeys: Set<string> | null = null;
+          try {
+            const remoteListing = await this.gcs.listAllObjects(
+              undefined,
+              signal,
+            );
+            remoteKeys = new Set<string>();
+            for (const listEntry of remoteListing) {
+              if (listNsPrefix && listEntry.key.startsWith(listNsPrefix)) {
+                remoteKeys.add(listEntry.key.slice(listNsPrefix.length));
+              } else {
+                remoteKeys.add(listEntry.key);
+              }
+            }
+          } catch {
+            // Non-fatal: listing failed, skip bulk pruning.
+          }
+          tracePhase(
+            "pullChanged.remoteListing",
+            listStart,
+            remoteKeys ? `keys=${remoteKeys.size}` : "fallback",
+          );
+
           const walkStart = Date.now();
           const toPull: string[] = [];
           const lazyDirsToCreate: Set<string> = new Set();
+          const pull404PartitionKeys = new Set<string>();
           for (
             const [rel, entry] of Object.entries(this.index?.entries ?? {})
           ) {
             if (isInternalCacheFile(rel)) {
+              continue;
+            }
+            // Prune entries whose remote object no longer exists — the
+            // listing already told us, no per-file getObject needed.
+            // Skipped when the listing failed (remoteKeys is null).
+            if (remoteKeys && !remoteKeys.has(rel)) {
+              if (this.index) {
+                const partKey = GcsCacheSyncService.partitionKeyFromPath(rel);
+                if (partKey) pull404PartitionKeys.add(partKey);
+                delete this.index.entries[rel];
+                this.indexMutated = true;
+              }
               continue;
             }
             if (metadataOnly && isLazySkippable(rel)) {
@@ -1855,7 +1905,6 @@ export class GcsCacheSyncService implements DatastoreSyncService {
           const downloadStart = Date.now();
           let pulled = 0;
           const failures: Array<{ file: string; error: unknown }> = [];
-          const pull404PartitionKeys = new Set<string>();
           for (let i = 0; i < toPull.length; i += this.pullConcurrency) {
             throwIfAborted(signal);
             const batch = toPull.slice(i, i + this.pullConcurrency);
@@ -1989,6 +2038,19 @@ export class GcsCacheSyncService implements DatastoreSyncService {
               // Non-fatal: shard writeback is opportunistic. A missed
               // cleanup only costs repeated 404s on the next boot —
               // the same behavior as before this fix.
+            }
+          } else if (v2CommitSeq !== null) {
+            // Shard-first path, clean pull (no 404 cleanup, no monolithic
+            // index generation). Record commitSeq in the sidecar so the
+            // fast path can arm on the next pull (swamp-club #1931).
+            try {
+              const sidecar = this.buildV2State({ localDirty: false });
+              sidecar.commitSeq = v2CommitSeq;
+              sidecar.remoteIndexGeneration = "";
+              await this.writeSyncState(sidecar);
+            } catch {
+              // Non-fatal: missed sidecar update only costs one slow-path
+              // sync next time.
             }
           }
 
@@ -2188,25 +2250,35 @@ export class GcsCacheSyncService implements DatastoreSyncService {
           }
 
           if (needsDataKeyMigration) {
-            const { copied, total } = await this.migrateRootDataToNamespace(
-              signal,
-            );
-            const allMigrated = total === 0 || copied === total;
-            if (copied > 0) {
+            if (assembled) {
+              // v2 shard-first index is in place — data is already
+              // namespaced, skip root migration (swamp-club #2091).
+              try {
+                const sidecar = this.buildV2State({ localDirty: false });
+                sidecar.dataKeyMigrated = true;
+                await this.writeSyncState(sidecar);
+              } catch { /* non-fatal */ }
+            } else {
+              const { copied, total } = await this.migrateRootDataToNamespace(
+                signal,
+              );
+              const allMigrated = total === 0 || copied === total;
+              if (copied > 0) {
+                try {
+                  const sidecar = this.buildV2State({ localDirty: false });
+                  if (allMigrated) sidecar.dataKeyMigrated = true;
+                  await this.writeSyncState(sidecar);
+                } catch { /* non-fatal */ }
+                span.setAttribute(Attr.DATASTORE_FILES_PUSHED, copied);
+                span.setAttribute(Attr.DATASTORE_FILES_DELETED, 0);
+                return copied;
+              }
               try {
                 const sidecar = this.buildV2State({ localDirty: false });
                 if (allMigrated) sidecar.dataKeyMigrated = true;
                 await this.writeSyncState(sidecar);
               } catch { /* non-fatal */ }
-              span.setAttribute(Attr.DATASTORE_FILES_PUSHED, copied);
-              span.setAttribute(Attr.DATASTORE_FILES_DELETED, 0);
-              return copied;
             }
-            try {
-              const sidecar = this.buildV2State({ localDirty: false });
-              if (allMigrated) sidecar.dataKeyMigrated = true;
-              await this.writeSyncState(sidecar);
-            } catch { /* non-fatal */ }
           }
 
           if (needsControlPlaneMigration) {
@@ -2645,16 +2717,26 @@ export class GcsCacheSyncService implements DatastoreSyncService {
           }
 
           if (needsDataKeyMigration) {
-            const { copied, total } = await this.migrateRootDataToNamespace(
-              signal,
-            );
-            const allMigrated = total === 0 || copied === total;
-            try {
-              const sidecar = this.buildV2State({ localDirty: false });
-              if (allMigrated) sidecar.dataKeyMigrated = true;
-              await this.writeSyncState(sidecar);
-            } catch { /* non-fatal */ }
-            if (total > 0) return emptyManifest as unknown as PushManifest;
+            if (prepAssembled) {
+              // v2 shard-first index is in place — data is already
+              // namespaced, skip root migration (swamp-club #2091).
+              try {
+                const sidecar = this.buildV2State({ localDirty: false });
+                sidecar.dataKeyMigrated = true;
+                await this.writeSyncState(sidecar);
+              } catch { /* non-fatal */ }
+            } else {
+              const { copied, total } = await this.migrateRootDataToNamespace(
+                signal,
+              );
+              const allMigrated = total === 0 || copied === total;
+              try {
+                const sidecar = this.buildV2State({ localDirty: false });
+                if (allMigrated) sidecar.dataKeyMigrated = true;
+                await this.writeSyncState(sidecar);
+              } catch { /* non-fatal */ }
+              if (total > 0) return emptyManifest as unknown as PushManifest;
+            }
           }
 
           if (needsControlPlaneMigration) {

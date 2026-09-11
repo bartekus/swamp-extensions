@@ -4529,6 +4529,7 @@ Deno.test("pullChanged: still throws on non-NotFound errors", async () => {
       },
     });
     mock.storage.set(".datastore-index.json", indexBody);
+    mock.storage.set("data/file/v1/raw", new TextEncoder().encode("hello"));
     // Override getObject to return an auth error instead of NotFound.
     const origGet = mock.getObject.bind(mock);
     (mock as unknown as Record<string, unknown>).getObject = (
@@ -7646,6 +7647,201 @@ Deno.test("swamp-club#2063: pullChanged with shard-first path removes stale entr
       staleGets.length,
       0,
       "stale key must not be re-requested on second pull",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// -- swamp-club#1931: commitSeq fast path must arm after clean v2 pull -------
+
+Deno.test("swamp-club#1931: GCS pullChanged on v2 shard-first writes commitSeq to sidecar, next pull is fast-pathed", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-test-1931-" });
+  try {
+    const mock = createMockGcsClient();
+
+    const shardKey = "data--t1--m1--d1";
+    const entries = {
+      "data/t1/m1/d1/1/raw": {
+        key: "data/t1/m1/d1/1/raw",
+        size: 4,
+        lastModified: new Date().toISOString(),
+      },
+    };
+    mock.storage.set(
+      "_index/_meta.json",
+      new TextEncoder().encode(
+        JSON.stringify({ version: 2, partitions: [shardKey], commitSeq: 5 }),
+      ),
+    );
+    mock.storage.set(
+      `_index/${shardKey}.json`,
+      new TextEncoder().encode(JSON.stringify({ version: 1, entries })),
+    );
+    mock.storage.set(
+      "data/t1/m1/d1/1/raw",
+      new TextEncoder().encode("data"),
+    );
+
+    const svc = new GcsCacheSyncService(mock, cachePath);
+
+    const pulled = await svc.pullChanged();
+    assertEquals(pulled, 1);
+
+    const sidecarPath = join(cachePath, ".datastore-sync-state.json");
+    const sidecar = JSON.parse(await Deno.readTextFile(sidecarPath));
+    assertEquals(
+      sidecar.commitSeq,
+      5,
+      "sidecar must have commitSeq from _meta.json",
+    );
+
+    mock.gets.length = 0;
+    const result = await svc.pullChanged();
+    assertEquals(result, 0, "second pull must hit fast path");
+    const metaGets = mock.gets.filter((k: string) => k === "_index/_meta.json");
+    assertEquals(
+      metaGets.length,
+      1,
+      "fast path reads _meta.json once to compare commitSeq",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// -- swamp-club#2091: skip root migration when v2 shards assembled -----------
+
+Deno.test("swamp-club#2091: GCS preparePush skips root migration when v2 shard index exists", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-test-2091-" });
+  try {
+    const mock = createMockGcsClient();
+
+    const shardKey = "data--t1--m1--d1";
+    const entries = {
+      "data/t1/m1/d1/1/raw": {
+        key: "data/t1/m1/d1/1/raw",
+        size: 4,
+        lastModified: new Date().toISOString(),
+      },
+    };
+    mock.storage.set(
+      "my-ns/_index/_meta.json",
+      new TextEncoder().encode(
+        JSON.stringify({ version: 2, partitions: [shardKey], commitSeq: 1 }),
+      ),
+    );
+    mock.storage.set(
+      `my-ns/_index/${shardKey}.json`,
+      new TextEncoder().encode(JSON.stringify({ version: 1, entries })),
+    );
+    mock.storage.set(
+      "my-ns/data/t1/m1/d1/1/raw",
+      new TextEncoder().encode("data"),
+    );
+    mock.storage.set(
+      ".datastore-index.json",
+      new TextEncoder().encode(JSON.stringify({ version: 1, entries: {} })),
+    );
+
+    await seedFile(cachePath, "my-ns/data/t1/m1/d1/1/raw", "data");
+
+    const svc = new GcsCacheSyncService(mock, cachePath);
+    await svc.markDirty({ relPath: "my-ns/data/t1/m1/d1/1/raw" });
+    await svc.preparePush({ namespace: "my-ns" });
+
+    const rootIndexGets = mock.gets.filter(
+      (k: string) => k === ".datastore-index.json",
+    );
+    assertEquals(
+      rootIndexGets.length,
+      0,
+      "must not read root .datastore-index.json when v2 shards exist",
+    );
+
+    const sidecarPath = join(cachePath, ".datastore-sync-state.json");
+    const sidecar = JSON.parse(await Deno.readTextFile(sidecarPath));
+    assertEquals(
+      sidecar.dataKeyMigrated,
+      true,
+      "dataKeyMigrated must be set when v2 shards are in place",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// -- swamp-club#2033: listing failure graceful fallback -----------------------
+
+Deno.test("swamp-club#2033: GCS pullChanged falls back to per-file behavior when listing fails", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-test-2033fb-" });
+  try {
+    const mock = createMockGcsClient();
+
+    const indexBody = encodeIndex({
+      "data/f/v1/raw": {
+        key: "data/f/v1/raw",
+        size: 5,
+        lastModified: new Date().toISOString(),
+      },
+    });
+    mock.storage.set(".datastore-index.json", indexBody);
+    mock.storage.set("data/f/v1/raw", new TextEncoder().encode("hello"));
+
+    (mock as unknown as Record<string, unknown>).listAllObjects = () => {
+      return Promise.reject(
+        new GcsOperationError("Forbidden", {
+          name: "GcsOperationError",
+          httpStatusCode: 403,
+          code: "forbidden",
+          bodyPreview: undefined,
+          uploadId: undefined,
+        }),
+      );
+    };
+
+    const svc = new GcsCacheSyncService(mock, cachePath);
+    const pulled = await svc.pullChanged();
+    assertEquals(pulled, 1, "must still pull files when listing fails");
+
+    const content = await Deno.readTextFile(join(cachePath, "data/f/v1/raw"));
+    assertEquals(content, "hello");
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2033: GCS pullChanged prunes stale entries via listing without per-file 404", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-test-2033pr-" });
+  try {
+    const mock = createMockGcsClient();
+
+    const indexBody = encodeIndex({
+      "data/live/v1/raw": {
+        key: "data/live/v1/raw",
+        size: 4,
+        lastModified: new Date().toISOString(),
+      },
+      "data/stale/v1/raw": {
+        key: "data/stale/v1/raw",
+        size: 5,
+        lastModified: new Date().toISOString(),
+      },
+    });
+    mock.storage.set(".datastore-index.json", indexBody);
+    mock.storage.set("data/live/v1/raw", new TextEncoder().encode("live"));
+
+    const svc = new GcsCacheSyncService(mock, cachePath);
+    const pulled = await svc.pullChanged();
+    assertEquals(pulled, 1, "should only pull the live file");
+
+    const staleGets = mock.gets.filter(
+      (k: string) => k === "data/stale/v1/raw",
+    );
+    assertEquals(
+      staleGets.length,
+      0,
+      "stale entry must be pruned by listing, not via getObject 404",
     );
   } finally {
     await Deno.remove(cachePath, { recursive: true });
