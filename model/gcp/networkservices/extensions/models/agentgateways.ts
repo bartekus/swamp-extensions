@@ -129,6 +129,9 @@ const LIST_CONFIG = {
     "parent",
   ],
   "parameters": {
+    "filter": {
+      "location": "query",
+    },
     "pageSize": {
       "location": "query",
     },
@@ -363,7 +366,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Services AgentGateways. Registered at `@swamp/gcp/networkservices/agentgateways`. */
 export const model = {
   type: "@swamp/gcp/networkservices/agentgateways",
-  version: "2026.08.12.2",
+  version: "2026.09.12.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -372,6 +375,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.12.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -682,6 +690,9 @@ export const model = {
     list: {
       description: "List agentGateways resources",
       arguments: z.object({
+        filter: z.string().describe(
+          "Optional. A filter expression to filter the results listed in the response. The expression must follow the syntax described in [AIP-160](https://google.aip.dev/160).",
+        ).optional(),
         pageSize: z.number().describe(
           "Optional. Maximum number of AgentGateways to return per call.",
         ).optional(),
@@ -702,6 +713,9 @@ export const model = {
         params["parent"] = `projects/${projectId}/locations/${
           String(g["location"] ?? "")
         }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
         if (args["pageSize"] !== undefined) {
           params["pageSize"] = String(args["pageSize"]);
         }

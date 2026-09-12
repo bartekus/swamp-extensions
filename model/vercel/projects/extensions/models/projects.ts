@@ -362,6 +362,7 @@ const GlobalArgsSchema = z.object({
     "Restricts access to deployments based on the incoming request IP address",
   ).optional(),
   trustedSources: z.object({
+    enableVercelCiSameRepository: z.boolean().optional(),
     projects: z.record(z.string(), z.unknown()).optional(),
     oidcProviders: z.record(z.string(), z.unknown()).optional(),
   }).describe("Deployment Protection Trusted Sources").optional(),
@@ -1209,6 +1210,7 @@ const ResourceSchema = z.object({
     protectionMode: z.string().optional(),
   }).nullable().optional(),
   trustedSources: z.object({
+    enableVercelCiSameRepository: z.boolean().optional(),
     projects: z.record(z.string(), z.unknown()).optional(),
     oidcProviders: z.record(z.string(), z.unknown()).optional(),
   }).nullable().optional(),
@@ -1651,6 +1653,7 @@ const InputsSchema = z.object({
     protectionMode: z.enum(["exclusive", "additional"]),
   }).optional(),
   trustedSources: z.object({
+    enableVercelCiSameRepository: z.boolean().optional(),
     projects: z.record(z.string(), z.unknown()).optional(),
     oidcProviders: z.record(z.string(), z.unknown()).optional(),
   }).optional(),
@@ -1714,7 +1717,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Projects. Registered at `@swamp/vercel/projects/projects`. */
 export const model = {
   type: "@swamp/vercel/projects/projects",
-  version: "2026.09.10.1",
+  version: "2026.09.12.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -1823,6 +1826,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.10.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.12.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

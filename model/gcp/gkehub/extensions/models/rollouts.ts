@@ -25,7 +25,7 @@
 /**
  * Swamp extension model for Google Cloud GKE Hub Rollouts.
  *
- * Rollout contains the Rollout metadata and configuration. Next ID: 31
+ * Rollout contains the Rollout metadata and configuration. Next ID: 32
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -213,7 +213,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud GKE Hub Rollouts. Registered at `@swamp/gcp/gkehub/rollouts`. */
 export const model = {
   type: "@swamp/gcp/gkehub/rollouts",
-  version: "2026.08.22.1",
+  version: "2026.09.12.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -230,13 +230,18 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.12.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
       description:
-        "Rollout contains the Rollout metadata and configuration. Next ID: 31",
+        "Rollout contains the Rollout metadata and configuration. Next ID: 32",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,

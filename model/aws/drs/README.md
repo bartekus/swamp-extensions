@@ -14,8 +14,9 @@ methods:
 - **delete** — remove the resource from AWS
 - **sync** — refresh all resource properties from AWS
 
-Use `swamp model type describe @swamp/aws/drs/source_network` to see the full
-list of configurable properties and available methods for this model.
+Use `swamp model type describe @swamp/aws/drs/launch_configuration_template` to
+see the full list of configurable properties and available methods for this
+model.
 
 ## Authentication
 
@@ -47,17 +48,17 @@ export AWS_SECRET_ACCESS_KEY=wJal...
 ## Usage
 
 ```bash
-# Create a new source_network model
-swamp model create @swamp/aws/drs/source_network my-source_network
+# Create a new launch_configuration_template model
+swamp model create @swamp/aws/drs/launch_configuration_template my-launch_configuration_template
 
 # Edit the model to configure its properties
-swamp model edit my-source_network
+swamp model edit my-launch_configuration_template
 
 # Create the resource in AWS
-swamp model method run my-source_network create
+swamp model method run my-launch_configuration_template create
 
 # Sync current state from AWS
-swamp model method run my-source_network sync
+swamp model method run my-launch_configuration_template sync
 ```
 
 ## License

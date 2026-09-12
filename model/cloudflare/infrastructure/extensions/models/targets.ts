@@ -59,6 +59,9 @@ const GlobalArgsSchema = z.object({
       virtual_network_id: z.string().optional(),
     }).optional(),
   }).describe("The IPv4/IPv6 address that identifies where to reach a target"),
+  tags: z.record(z.string(), z.unknown()).describe(
+    "Optional tags to associate with the target. Keys and values are\nuser-defined strings.",
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -85,6 +88,7 @@ const ResourceSchema = z.object({
     }).optional(),
   }).optional(),
   modified_at: z.string().optional(),
+  tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -103,6 +107,7 @@ const InputsSchema = z.object({
       virtual_network_id: z.string().optional(),
     }).optional(),
   }).optional(),
+  tags: z.record(z.string(), z.unknown()).optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
   apiKey: z.string().meta({ sensitive: true }).optional(),
   email: z.string().meta({ sensitive: true }).optional(),
@@ -111,7 +116,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Targets. Registered at `@swamp/cloudflare/infrastructure/targets`. */
 export const model = {
   type: "@swamp/cloudflare/infrastructure/targets",
-  version: "2026.07.21.1",
+  version: "2026.09.12.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -131,6 +136,11 @@ export const model = {
     {
       toVersion: "2026.07.21.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.12.1",
+      description: "Added: tags",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -155,6 +165,7 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g.hostname !== undefined) body.hostname = g.hostname;
         if (g.ip !== undefined) body.ip = g.ip;
+        if (g.tags !== undefined) body.tags = g.tags;
         const result = await create(endpoint, body, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
@@ -309,6 +320,7 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g.hostname !== undefined) body.hostname = g.hostname;
         if (g.ip !== undefined) body.ip = g.ip;
+        if (g.tags !== undefined) body.tags = g.tags;
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

@@ -75,7 +75,7 @@ const GlobalArgsSchema = z.object({
     sha: z.string(),
   }).optional(),
   meta: z.record(z.string(), z.unknown()).describe(
-    "An object containing the deployment's metadata. Multiple key-value pairs can be attached to a deployment",
+    "An object containing the deployment's metadata. Multiple key-value pairs can be attached to a deployment. For deployments created with a Cursor Origin `gitSource`, Vercel automatically adds `cursorOriginDeployment`, `cursorOriginCommitSha`, `cursorOriginCommitRef`, `cursorOriginCommitMessage`, `cursorOriginCommitAuthorName`, `cursorOriginCommitAuthorEmail` when available, `cursorOriginOwner`, `cursorOriginRepo`, `cursorOriginRepoId`, and `cursorOriginPrId` for pull request deployments.",
   ).optional(),
   monorepoManager: z.string().describe(
     "The monorepo manager that is being used for this deployment. When `null` is used no monorepo manager is selected",
@@ -342,7 +342,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Deployments. Registered at `@swamp/vercel/deployments/deployments`. */
 export const model = {
   type: "@swamp/vercel/deployments/deployments",
-  version: "2026.09.03.1",
+  version: "2026.09.12.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -386,6 +386,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.03.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.12.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/networkservices"
-version: "2026.08.22.1"
+version: "2026.09.12.1"
 description: "Google Cloud networkservices infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: extensionbindings, producerextensions
+  - Updated: agentgateways
 models:
   - agentconnectivitytemplates.ts
   - agentgateways.ts

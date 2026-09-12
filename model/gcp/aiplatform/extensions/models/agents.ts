@@ -189,7 +189,7 @@ const GlobalArgsSchema = z.object({
       "Optional. The headers for the MCP server, such as for authentication. Only applicable when `type` is `mcp_server`.",
     ).optional(),
     name: z.string().describe(
-      "Optional. The tool's GCP resource name, used to resolve the tool. Applicable when `type` is `mcp_server` or `endpoint` (a tool registered in Agent Registry), for example `projects/{project}/locations/{location}/.../mcpServers/{id}` or `projects/{project}/locations/{location}/.../endpoints/{id}`.",
+      "Optional. The tool's Google Cloud resource name, used to resolve the tool. Applicable when `type` is `mcp_server` or `endpoint` (a tool registered in Agent Registry), for example `projects/{project}/locations/{location}/.../mcpServers/{id}` or `projects/{project}/locations/{location}/.../endpoints/{id}`.",
     ).optional(),
     type: z.string().describe(
       "Required. The type of the tool. Supported types: * `code_execution` * `endpoint` * `filesystem` * `google_search` * `mcp_server` * `url_context`",
@@ -256,7 +256,7 @@ const InputsSchema = z.object({
       "Optional. The headers for the MCP server, such as for authentication. Only applicable when `type` is `mcp_server`.",
     ).optional(),
     name: z.string().describe(
-      "Optional. The tool's GCP resource name, used to resolve the tool. Applicable when `type` is `mcp_server` or `endpoint` (a tool registered in Agent Registry), for example `projects/{project}/locations/{location}/.../mcpServers/{id}` or `projects/{project}/locations/{location}/.../endpoints/{id}`.",
+      "Optional. The tool's Google Cloud resource name, used to resolve the tool. Applicable when `type` is `mcp_server` or `endpoint` (a tool registered in Agent Registry), for example `projects/{project}/locations/{location}/.../mcpServers/{id}` or `projects/{project}/locations/{location}/.../endpoints/{id}`.",
     ).optional(),
     type: z.string().describe(
       "Required. The type of the tool. Supported types: * `code_execution` * `endpoint` * `filesystem` * `google_search` * `mcp_server` * `url_context`",
@@ -296,7 +296,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform Agents. Registered at `@swamp/gcp/aiplatform/agents`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/agents",
-  version: "2026.09.07.2",
+  version: "2026.09.12.1",
   upgrades: [
     {
       toVersion: "2026.07.21.2",
@@ -340,6 +340,11 @@ export const model = {
         const { headers: _headers, type: _type, url: _url, ...rest } = old;
         return rest;
       },
+    },
+    {
+      toVersion: "2026.09.12.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   globalArguments: GlobalArgsSchema,

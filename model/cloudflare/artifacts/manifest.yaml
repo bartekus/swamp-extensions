@@ -1,0 +1,19 @@
+# Auto-generated manifest. Re-generate with the appropriate deno task.
+manifestVersion: 1
+name: "@swamp/cloudflare/artifacts"
+version: "2026.09.12.1"
+description: "Cloudflare artifacts infrastructure models"
+repository: "https://github.com/swamp-club/swamp-extensions"
+labels:
+  - cloudflare
+  - artifacts
+  - cloud
+  - infrastructure
+releaseNotes: |
+  - Added: namespaces
+models:
+  - namespaces.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []

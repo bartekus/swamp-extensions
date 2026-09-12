@@ -86,6 +86,9 @@ const BedrockEmbeddingModelConfigurationSchema = z.object({
   Video: z.array(VideoConfigurationSchema).describe(
     "List of video configurations for multi modal ingestion.",
   ).optional(),
+  ModelConfiguration: z.record(z.string(), z.unknown()).describe(
+    "Model-specific configuration for the embedding model.",
+  ).optional(),
 });
 
 const EmbeddingModelConfigurationSchema = z.object({
@@ -313,6 +316,10 @@ const ManagedKnowledgeBaseConfigurationSchema = z.object({
   EmbeddingModelConfiguration: EmbeddingModelConfigurationSchema.describe(
     "The embeddings model configuration details for the vector model used in Knowledge Base.",
   ).optional(),
+  SupplementalDataStorageConfiguration:
+    SupplementalDataStorageConfigurationSchema.describe(
+      "Configurations for supplemental data storage.",
+    ).optional(),
   ServerSideEncryptionConfiguration:
     ManagedKnowledgeBaseServerSideEncryptionConfigurationSchema.describe(
       "Contains details about the server-side encryption for the managed knowledge base.",
@@ -900,7 +907,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Bedrock KnowledgeBase. Registered at `@swamp/aws/bedrock/knowledge-base`. */
 export const model = {
   type: "@swamp/aws/bedrock/knowledge-base",
-  version: "2026.09.06.1",
+  version: "2026.09.12.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1004,6 +1011,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.12.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

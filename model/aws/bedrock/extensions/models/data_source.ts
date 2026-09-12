@@ -410,6 +410,7 @@ const ParsingConfigurationSchema = z.object({
     "BEDROCK_FOUNDATION_MODEL",
     "BEDROCK_DATA_AUTOMATION",
     "SMART_PARSING",
+    "MULTI_MODAL_EMBEDDINGS",
   ]).describe("The parsing strategy for the data source."),
   BedrockFoundationModelConfiguration: BedrockFoundationModelConfigurationSchema
     .describe(
@@ -669,7 +670,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Bedrock DataSource. Registered at `@swamp/aws/bedrock/data-source`. */
 export const model = {
   type: "@swamp/aws/bedrock/data-source",
-  version: "2026.08.17.2",
+  version: "2026.09.12.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -723,6 +724,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.12.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
