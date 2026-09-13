@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/oam"
-version: "2026.09.12.1"
+version: "2026.09.13.1"
 description: "AWS OAM infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
