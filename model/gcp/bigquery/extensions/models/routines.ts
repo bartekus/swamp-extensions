@@ -239,6 +239,7 @@ const GlobalArgsSchema = z.object({
         "ARRAY",
         "STRUCT",
         "RANGE",
+        "UUID",
       ]).describe(
         'Required. The top level type of this field. Can be any GoogleSQL data type (e.g., "INT64", "DATE", "ARRAY").',
       ).optional(),
@@ -300,6 +301,16 @@ const GlobalArgsSchema = z.object({
     ).optional(),
     runtimeVersion: z.string().describe(
       "Optional. Language runtime version. Example: `python-3.11`.",
+    ).optional(),
+    volumeMounts: z.array(z.object({
+      mountPath: z.string().describe(
+        "Optional. The absolute path within the container where the volume should be mounted.",
+      ).optional(),
+      sourcePath: z.string().describe(
+        "Optional. The absolute path of the source to be mounted, only support Google Cloud Storage bucket or folder now. Eg: gs://bucket-xxx for Google Cloud Storage bucket, gs://bucket-xxx/folder1/folder2 for Google Cloud Storage folder.",
+      ).optional(),
+    })).describe(
+      "Optional. List of volume mounts for the Python UDF container that executes the managed function.",
     ).optional(),
   }).describe(
     "Optional. Options for the runtime of the external system executing the routine. This field is only applicable for Python UDFs. [Preview](https://cloud.google.com/products/#product-launch-stages)",
@@ -377,6 +388,7 @@ const GlobalArgsSchema = z.object({
           "ARRAY",
           "STRUCT",
           "RANGE",
+          "UUID",
         ]).describe(
           'Required. The top level type of this field. Can be any GoogleSQL data type (e.g., "INT64", "DATE", "ARRAY").',
         ).optional(),
@@ -424,6 +436,7 @@ const GlobalArgsSchema = z.object({
       "ARRAY",
       "STRUCT",
       "RANGE",
+      "UUID",
     ]).describe(
       'Required. The top level type of this field. Can be any GoogleSQL data type (e.g., "INT64", "DATE", "ARRAY").',
     ).optional(),
@@ -537,6 +550,10 @@ const StateSchema = z.object({
     maxBatchingRows: z.string(),
     runtimeConnection: z.string(),
     runtimeVersion: z.string(),
+    volumeMounts: z.array(z.object({
+      mountPath: z.string(),
+      sourcePath: z.string(),
+    })),
   }).optional(),
   importedLibraries: z.array(z.string()).optional(),
   language: z.string().optional(),
@@ -647,6 +664,7 @@ const InputsSchema = z.object({
         "ARRAY",
         "STRUCT",
         "RANGE",
+        "UUID",
       ]).describe(
         'Required. The top level type of this field. Can be any GoogleSQL data type (e.g., "INT64", "DATE", "ARRAY").',
       ).optional(),
@@ -708,6 +726,16 @@ const InputsSchema = z.object({
     ).optional(),
     runtimeVersion: z.string().describe(
       "Optional. Language runtime version. Example: `python-3.11`.",
+    ).optional(),
+    volumeMounts: z.array(z.object({
+      mountPath: z.string().describe(
+        "Optional. The absolute path within the container where the volume should be mounted.",
+      ).optional(),
+      sourcePath: z.string().describe(
+        "Optional. The absolute path of the source to be mounted, only support Google Cloud Storage bucket or folder now. Eg: gs://bucket-xxx for Google Cloud Storage bucket, gs://bucket-xxx/folder1/folder2 for Google Cloud Storage folder.",
+      ).optional(),
+    })).describe(
+      "Optional. List of volume mounts for the Python UDF container that executes the managed function.",
     ).optional(),
   }).describe(
     "Optional. Options for the runtime of the external system executing the routine. This field is only applicable for Python UDFs. [Preview](https://cloud.google.com/products/#product-launch-stages)",
@@ -785,6 +813,7 @@ const InputsSchema = z.object({
           "ARRAY",
           "STRUCT",
           "RANGE",
+          "UUID",
         ]).describe(
           'Required. The top level type of this field. Can be any GoogleSQL data type (e.g., "INT64", "DATE", "ARRAY").',
         ).optional(),
@@ -832,6 +861,7 @@ const InputsSchema = z.object({
       "ARRAY",
       "STRUCT",
       "RANGE",
+      "UUID",
     ]).describe(
       'Required. The top level type of this field. Can be any GoogleSQL data type (e.g., "INT64", "DATE", "ARRAY").',
     ).optional(),
@@ -926,7 +956,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud BigQuery Routines. Registered at `@swamp/gcp/bigquery/routines`. */
 export const model = {
   type: "@swamp/gcp/bigquery/routines",
-  version: "2026.08.25.1",
+  version: "2026.09.14.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1088,6 +1118,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.14.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
