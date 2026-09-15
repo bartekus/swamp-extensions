@@ -306,3 +306,126 @@ Deno.test("wrapAwsSmError: non-Error throw becomes a plain Error wrapper", () =>
   assert(!(wrapped instanceof AwsSmOperationError));
   assertEquals(wrapped.message, "not an Error instance");
 });
+
+// --- `profile` argument (issue #2099) ---
+
+// The configured profile outranks AWS_PROFILE. A vault pinned to a profile is
+// not using whatever the shell exports, so remediation advice must name the
+// configured one or it sends the reader to the wrong place.
+Deno.test("wrapAwsSmError: configured profile beats a conflicting AWS_PROFILE", () => {
+  const prev = Deno.env.get("AWS_PROFILE");
+  Deno.env.set("AWS_PROFILE", "env-profile");
+  try {
+    const original = new Error("Could not load credentials from any providers");
+    original.name = "CredentialsProviderError";
+
+    const wrapped = wrapAwsSmError(
+      "GetSecretValue",
+      original,
+      "config-profile",
+    );
+
+    assert(
+      wrapped.message.includes(`aws sso login --profile "config-profile"`),
+      `expected the configured profile in the hint, got: ${wrapped.message}`,
+    );
+    assert(
+      !wrapped.message.includes("env-profile"),
+      `expected AWS_PROFILE not to win, got: ${wrapped.message}`,
+    );
+  } finally {
+    if (prev !== undefined) Deno.env.set("AWS_PROFILE", prev);
+    else Deno.env.delete("AWS_PROFILE");
+  }
+});
+
+// Falls back to AWS_PROFILE when the vault has no configured profile, so the
+// pre-#2099 behaviour is unchanged for vaults that do not set one.
+Deno.test("wrapAwsSmError: falls back to AWS_PROFILE when no profile is configured", () => {
+  const prev = Deno.env.get("AWS_PROFILE");
+  Deno.env.set("AWS_PROFILE", "env-profile");
+  try {
+    const original = new Error("Could not load credentials from any providers");
+    original.name = "CredentialsProviderError";
+
+    const wrapped = wrapAwsSmError("GetSecretValue", original);
+
+    assert(
+      wrapped.message.includes(`aws sso login --profile "env-profile"`),
+      `expected AWS_PROFILE in the hint, got: ${wrapped.message}`,
+    );
+  } finally {
+    if (prev !== undefined) Deno.env.set("AWS_PROFILE", prev);
+    else Deno.env.delete("AWS_PROFILE");
+  }
+});
+
+// A profile that cannot be resolved is reported as such, NOT as an expired SSO
+// session. This is the misdiagnosis #2099 introduces if left unhandled: the
+// shared classifier maps CredentialsProviderError to 'session-expired', which
+// would advise refreshing an SSO session for a profile that does not exist.
+// The message text is the SDK's own, verified against
+// @aws-sdk/credential-providers@3.1127.0.
+Deno.test("wrapAwsSmError: unresolvable profile reports profile-not-found", () => {
+  const original = new Error(
+    "Could not resolve credentials using profile: [missing-profile] in configuration/credentials file(s).",
+  );
+  original.name = "CredentialsProviderError";
+
+  const wrapped = wrapAwsSmError("GetSecretValue", original, "missing-profile");
+
+  assert(
+    wrapped.message.includes("was not found in ~/.aws/config"),
+    `expected a profile-not-found hint, got: ${wrapped.message}`,
+  );
+  assert(
+    wrapped.message.includes("missing-profile"),
+    `expected the hint to name the profile, got: ${wrapped.message}`,
+  );
+  assert(
+    !wrapped.message.includes("aws sso login"),
+    `expected no SSO-refresh advice, got: ${wrapped.message}`,
+  );
+});
+
+// The other direction: a credential error that is NOT about profile resolution
+// must still fall through to the shared classification. Guards against the
+// narrow pattern widening into a catch-all that swallows real SSO expiry.
+Deno.test("wrapAwsSmError: non-matching credential error still classifies as session-expired", () => {
+  const original = new Error("Could not load credentials from any providers");
+  original.name = "CredentialsProviderError";
+
+  const wrapped = wrapAwsSmError("GetSecretValue", original, "some-profile");
+
+  assert(
+    wrapped.message.includes("session expired"),
+    `expected the shared session-expired classification, got: ${wrapped.message}`,
+  );
+  assert(
+    !wrapped.message.includes("was not found in ~/.aws/config"),
+    `expected no profile-not-found hint, got: ${wrapped.message}`,
+  );
+});
+
+// Without a configured profile the profile-not-found path is inert, even if an
+// error happens to carry a matching message.
+Deno.test("wrapAwsSmError: profile-not-found hint requires a configured profile", () => {
+  const prev = Deno.env.get("AWS_PROFILE");
+  Deno.env.delete("AWS_PROFILE");
+  try {
+    const original = new Error(
+      "Could not resolve credentials using profile: [x] in configuration/credentials file(s).",
+    );
+    original.name = "CredentialsProviderError";
+
+    const wrapped = wrapAwsSmError("GetSecretValue", original);
+
+    assert(
+      !wrapped.message.includes("was not found in ~/.aws/config"),
+      `expected no profile-not-found hint, got: ${wrapped.message}`,
+    );
+  } finally {
+    if (prev !== undefined) Deno.env.set("AWS_PROFILE", prev);
+    else Deno.env.delete("AWS_PROFILE");
+  }
+});

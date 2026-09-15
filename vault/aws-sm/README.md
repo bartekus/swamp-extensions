@@ -13,12 +13,48 @@ swamp extension pull @swamp/aws-sm
 
 ## Configuration
 
-Credentials are resolved via the standard AWS credential chain — no credentials
-in config. Provide them via one of:
+| Key       | Required | Description                                                    |
+| --------- | -------- | -------------------------------------------------------------- |
+| `region`  | yes      | AWS region holding the secrets, e.g. `us-east-1`                |
+| `profile` | no       | Named AWS profile from `~/.aws/config` or `~/.aws/credentials`  |
+
+Credentials are never stored in config. With no `profile`, they are resolved via
+the standard AWS credential chain:
 
 - Environment variables: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
 - AWS profile: `~/.aws/credentials`
 - IAM role attached to the instance, task, or pod
+
+### Pinning a vault to a named profile
+
+Set `profile` when the default chain would resolve the wrong account — for
+example when engineers on a team use different profile names locally:
+
+```bash
+swamp vault create @swamp/aws-sm my-aws-sm \
+  --config '{"region": "us-east-1", "profile": "Developer-xero-ps-sre-test"}' --json
+```
+
+A configured `profile` **takes precedence over environment-variable
+credentials**: the vault reads that profile from the shared config files and
+does not consult `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` or `AWS_PROFILE`
+at all. That is the point of the option — a pinned vault should not change
+identity because of an exported variable. Without `profile`, nothing changes:
+the default chain applies exactly as before.
+
+The profile is resolved on the first vault operation, not at creation time, so a
+misspelled profile name surfaces when the vault is first used:
+
+```
+Vault AWS profile 'typo-profile' was not found in ~/.aws/config or
+~/.aws/credentials: check the profile name in the vault config, or run
+'aws configure list-profiles' to see the profiles available.
+```
+
+Profiles that assume a role (`source_profile` + `role_arn`) and SSO profiles are
+supported. Profiles using `credential_process` may not work — that path shells
+out to an external command, which is unreliable under Deno's npm compatibility
+layer.
 
 The calling principal must have the following IAM permissions on the target
 secrets:

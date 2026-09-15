@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/aws-sm"
-version: "2026.09.10.0"
+version: "2026.09.15.0"
 description: |
   Read, write, and delete secrets stored in AWS Secrets Manager, with support
   for vault annotations (`swamp vault annotate` / `swamp vault inspect`).
@@ -18,6 +18,13 @@ description: |
   - Environment variables: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
   - AWS profile: `~/.aws/credentials`
   - IAM role attached to the instance or task
+
+  Set the optional `profile` config key to pin the vault to a named AWS
+  profile from `~/.aws/config` instead. A configured profile takes precedence
+  over environment-variable credentials, so the vault keeps its identity
+  regardless of what the surrounding shell exports. Profiles that assume a
+  role and SSO profiles are supported; `credential_process` profiles may not
+  be.
 
   ## Required IAM Permissions
 
@@ -53,6 +60,10 @@ description: |
   ```bash
   swamp vault create @swamp/aws-sm my-aws-sm \
     --config '{"region": "us-east-1"}' --json
+
+  # Or pinned to a named AWS profile:
+  swamp vault create @swamp/aws-sm my-aws-sm \
+    --config '{"region": "us-east-1", "profile": "my-profile"}' --json
 
   swamp vault get my-aws-sm my/secret/name --json
   swamp vault put my-aws-sm my/secret/name "s3cr3t" --json

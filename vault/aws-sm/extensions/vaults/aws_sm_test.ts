@@ -41,10 +41,14 @@ Deno.test("vault export conforms to VaultProvider contract", () => {
     validConfigs: [
       { region: "us-east-1" },
       { region: "eu-west-1" },
+      { region: "us-east-1", profile: "my-profile" },
     ],
     invalidConfigs: [
       {},
       { region: "" },
+      // An empty profile is rejected rather than silently falling back to the
+      // default chain — same treatment `region` gets.
+      { region: "us-east-1", profile: "" },
     ],
   });
 });
@@ -56,15 +60,39 @@ Deno.test("createProvider throws on invalid config", () => {
   );
 });
 
+// Guards the #2095 fix: unknown config keys must error rather than being
+// silently stripped. This used to use `profile` as its unknown key; `profile`
+// became a recognized key in #2099, so the guard moved to a key that is still
+// genuinely unknown. Deleting the test instead would have dropped the guard.
 Deno.test("configSchema rejects unknown keys", () => {
   assertThrows(
     () =>
       vault.configSchema.parse({
         region: "us-east-1",
-        profile: "some-profile",
+        bogusKey: "some-value",
       }),
     Error,
     "Unrecognized key",
+  );
+});
+
+Deno.test("configSchema accepts an optional profile", () => {
+  const parsed = vault.configSchema.parse({
+    region: "us-east-1",
+    profile: "Developer-xero-ps-sre-test",
+  });
+  assertEquals(parsed.profile, "Developer-xero-ps-sre-test");
+});
+
+Deno.test("configSchema leaves profile undefined when omitted", () => {
+  const parsed = vault.configSchema.parse({ region: "us-east-1" });
+  assertEquals(parsed.profile, undefined);
+});
+
+Deno.test("configSchema rejects an empty profile", () => {
+  assertThrows(
+    () => vault.configSchema.parse({ region: "us-east-1", profile: "" }),
+    Error,
   );
 });
 
@@ -285,18 +313,46 @@ function startMockAwsServer(overrides: MockOverrides = {}): {
  * a developer's shell env doesn't poison hint assertions (which read
  * AWS_PROFILE at wrap time and embed it in the suggested SSO command).
  */
+interface MockAwsOptions {
+  overrides?: MockOverrides;
+  /**
+   * Named profiles to write into a temporary shared config/credentials pair.
+   *
+   * Required for any test exercising the `profile` config option: that path
+   * routes through `fromIni`, which reads the ini files and ignores the
+   * AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY this harness exports. Without a
+   * temp ini, such a test would silently resolve against the developer's real
+   * ~/.aws — environment-dependent, and a false pass on a machine that happens
+   * to have a matching profile.
+   *
+   * Deliberately writes NO `[default]` section, so a provider configured with
+   * no profile (or a profile absent from this map) fails to resolve credentials
+   * rather than falling through to a default that would mask which provider
+   * actually supplied them.
+   */
+  profiles?: Record<string, { accessKeyId: string; secretAccessKey: string }>;
+}
+
 async function withMockAws<T>(
   fn: (
     secrets: Map<string, string>,
     metadata: Map<string, SecretMetadata>,
   ) => Promise<T>,
-  overrides: MockOverrides = {},
+  options: MockOverrides | MockAwsOptions = {},
 ): Promise<T> {
-  const { url, server, secrets, metadata } = startMockAwsServer(overrides);
+  // Back-compat: existing call sites pass a bare MockOverrides object.
+  const opts: MockAwsOptions = "overrides" in options || "profiles" in options
+    ? options as MockAwsOptions
+    : { overrides: options as MockOverrides };
+  const { url, server, secrets, metadata } = startMockAwsServer(
+    opts.overrides ?? {},
+  );
   const originalEndpoint = Deno.env.get("AWS_ENDPOINT_URL");
   const originalKey = Deno.env.get("AWS_ACCESS_KEY_ID");
   const originalSecret = Deno.env.get("AWS_SECRET_ACCESS_KEY");
   const originalProfile = Deno.env.get("AWS_PROFILE");
+  const originalConfigFile = Deno.env.get("AWS_CONFIG_FILE");
+  const originalCredentialsFile = Deno.env.get("AWS_SHARED_CREDENTIALS_FILE");
 
   Deno.env.set("AWS_ENDPOINT_URL", url);
   // SDK needs credentials even for a mock endpoint
@@ -304,9 +360,38 @@ async function withMockAws<T>(
   Deno.env.set("AWS_SECRET_ACCESS_KEY", "test");
   Deno.env.delete("AWS_PROFILE");
 
+  // Point the ini sources at a temp dir for every test, not just those passing
+  // `profiles`. An empty ini is what makes "no usable profile" a reliable
+  // outcome; leaving the vars unset would let a real ~/.aws leak in.
+  const tempDir = await Deno.makeTempDir({ prefix: "aws-sm-test-" });
+  const configPath = `${tempDir}/config`;
+  const credentialsPath = `${tempDir}/credentials`;
+  let config = "";
+  let credentials = "";
+  for (const [name, creds] of Object.entries(opts.profiles ?? {})) {
+    config += `[profile ${name}]\nregion = us-east-1\n\n`;
+    credentials += `[${name}]\naws_access_key_id = ${creds.accessKeyId}\n` +
+      `aws_secret_access_key = ${creds.secretAccessKey}\n\n`;
+  }
+  await Deno.writeTextFile(configPath, config);
+  await Deno.writeTextFile(credentialsPath, credentials);
+  Deno.env.set("AWS_CONFIG_FILE", configPath);
+  Deno.env.set("AWS_SHARED_CREDENTIALS_FILE", credentialsPath);
+
   try {
     return await fn(secrets, metadata);
   } finally {
+    if (originalConfigFile !== undefined) {
+      Deno.env.set("AWS_CONFIG_FILE", originalConfigFile);
+    } else {
+      Deno.env.delete("AWS_CONFIG_FILE");
+    }
+    if (originalCredentialsFile !== undefined) {
+      Deno.env.set("AWS_SHARED_CREDENTIALS_FILE", originalCredentialsFile);
+    } else {
+      Deno.env.delete("AWS_SHARED_CREDENTIALS_FILE");
+    }
+    await Deno.remove(tempDir, { recursive: true });
     if (originalEndpoint) {
       Deno.env.set("AWS_ENDPOINT_URL", originalEndpoint);
     } else {
@@ -389,6 +474,174 @@ Deno.test({
       const result = await provider.get("my-key");
       assertEquals(result, "updated");
     });
+  },
+});
+
+// --- `profile` config option (issue #2099) ---
+
+Deno.test({
+  name: "aws-sm vault: profile-configured provider round-trips a secret",
+  sanitizeResources: false,
+  fn: async () => {
+    await withMockAws(async () => {
+      const provider = vault.createProvider("test", {
+        region: "us-east-1",
+        profile: "swamp-test",
+      });
+      await provider.put("my-key", "my-value");
+      assertEquals(await provider.get("my-key"), "my-value");
+      assertEquals((await provider.list()).includes("my-key"), true);
+    }, {
+      profiles: {
+        "swamp-test": {
+          accessKeyId: "ini-key",
+          secretAccessKey: "ini-secret",
+        },
+      },
+    });
+  },
+});
+
+// THE DISCRIMINATOR. The harness exports a complete, usable
+// AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY pair, and the temp ini has no
+// [default] section. So if credentials came from the environment this passes
+// regardless of the profile, and if they came from the ini it passes only
+// because the named profile resolved. To tell those apart, the profile named
+// here is absent from the ini: the operation MUST fail. A pass would mean the
+// env provider served the request and `profile` was ignored — the silent
+// wrong-credentials bug this option exists to prevent.
+Deno.test({
+  name:
+    "aws-sm vault: configured profile outranks environment credentials (missing profile fails despite valid env)",
+  sanitizeResources: false,
+  fn: async () => {
+    await withMockAws(async () => {
+      assertEquals(Deno.env.get("AWS_ACCESS_KEY_ID"), "test");
+      assertEquals(Deno.env.get("AWS_SECRET_ACCESS_KEY"), "test");
+      const provider = vault.createProvider("test", {
+        region: "us-east-1",
+        profile: "absent-from-ini",
+      });
+      await assertRejects(() => provider.get("my-key"));
+    }, {
+      profiles: {
+        "some-other-profile": {
+          accessKeyId: "ini-key",
+          secretAccessKey: "ini-secret",
+        },
+      },
+    });
+  },
+});
+
+// The control for the test above: same harness, same env credentials, no
+// profile configured. This one MUST succeed. Without it, the failure above
+// could be caused by anything (a broken mock, a bad region) rather than by
+// credential resolution going to the ini.
+Deno.test({
+  name:
+    "aws-sm vault: control — no profile configured still uses environment credentials",
+  sanitizeResources: false,
+  fn: async () => {
+    await withMockAws(async () => {
+      const provider = vault.createProvider("test", { region: "us-east-1" });
+      await provider.put("my-key", "my-value");
+      assertEquals(await provider.get("my-key"), "my-value");
+    });
+  },
+});
+
+Deno.test({
+  name:
+    "aws-sm vault: missing profile reports profile-not-found, not an expired SSO session",
+  sanitizeResources: false,
+  fn: async () => {
+    await withMockAws(async () => {
+      const provider = vault.createProvider("test", {
+        region: "us-east-1",
+        profile: "no-such-profile",
+      });
+      const err = await assertRejects(() => provider.get("my-key"));
+      assert(err instanceof AwsSmOperationError);
+      assert(
+        err.message.includes("no-such-profile"),
+        `expected the hint to name the profile, got: ${err.message}`,
+      );
+      assert(
+        err.message.includes("was not found in ~/.aws/config"),
+        `expected a profile-not-found hint, got: ${err.message}`,
+      );
+      // The misdiagnosis this replaces: CredentialsProviderError classifies as
+      // 'session-expired', which would tell the user to refresh an SSO session
+      // for a profile that does not exist and may never have been SSO-based.
+      assert(
+        !err.message.includes("aws sso login"),
+        `expected no SSO-refresh advice, got: ${err.message}`,
+      );
+      // Credential resolution fails before any HTTP request, so there is no
+      // $metadata to carry status or request id.
+      assertEquals(err.httpStatusCode, undefined);
+      assertEquals(err.requestId, undefined);
+    }, {
+      profiles: {
+        "some-other-profile": {
+          accessKeyId: "ini-key",
+          secretAccessKey: "ini-secret",
+        },
+      },
+    });
+  },
+});
+
+// SDK-wrap defense: a malformed error body (non-JSON, no `__type`) while a
+// profile is configured must still produce a wrapped error whose credential
+// hint names the configured profile rather than AWS_PROFILE.
+Deno.test({
+  name:
+    "aws-sm vault: malformed 403 with a configured profile names that profile in the hint",
+  sanitizeResources: false,
+  fn: async () => {
+    const originalProfile = Deno.env.get("AWS_PROFILE");
+    try {
+      await withMockAws(async () => {
+        // A conflicting env profile: the hint must name the configured one.
+        Deno.env.set("AWS_PROFILE", "env-profile");
+        const provider = vault.createProvider("test", {
+          region: "us-east-1",
+          profile: "swamp-test",
+        });
+        const err = await assertRejects(() => provider.get("my-key"));
+        assert(err instanceof AwsSmOperationError);
+        assert(
+          err.message.includes("swamp-test"),
+          `expected the configured profile in the hint, got: ${err.message}`,
+        );
+        assert(
+          !err.message.includes("env-profile"),
+          `expected AWS_PROFILE not to win, got: ${err.message}`,
+        );
+      }, {
+        overrides: {
+          GetSecretValue: {
+            status: 403,
+            body: "<html>403 Forbidden</html>",
+            contentType: "text/html",
+          },
+        },
+        profiles: {
+          "swamp-test": {
+            accessKeyId: "ini-key",
+            secretAccessKey: "ini-secret",
+          },
+        },
+      });
+    } finally {
+      if (originalProfile !== undefined) {
+        Deno.env.set("AWS_PROFILE", originalProfile);
+      } else {
+        Deno.env.delete("AWS_PROFILE");
+      }
+    }
   },
 });
 

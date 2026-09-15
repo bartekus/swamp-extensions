@@ -21,8 +21,9 @@
  * Swamp vault provider backed by AWS Secrets Manager.
  *
  * Reads and writes secrets through the AWS SDK v3, using the default AWS
- * credential chain. Use this entrypoint when a swamp deployment should store
- * its secrets in AWS Secrets Manager rather than the local vault.
+ * credential chain — or a named profile from `~/.aws/config` when the vault
+ * config supplies one. Use this entrypoint when a swamp deployment should
+ * store its secrets in AWS Secrets Manager rather than the local vault.
  *
  * @module
  */
@@ -40,6 +41,11 @@ import {
   UntagResourceCommand,
   UpdateSecretCommand,
 } from "npm:@aws-sdk/client-secrets-manager@3.1127.0";
+// Fully-qualified specifier, like every other import here: deno.json is not
+// published with the extension (manifest.yaml ships aws_sm.ts plus README and
+// LICENSE only), so a bare import-map name would resolve locally and fail for
+// every installed copy.
+import { fromIni } from "npm:@aws-sdk/credential-providers@3.1127.0";
 import { SpanStatusCode } from "npm:@opentelemetry/api@1.9.0";
 import { AwsSmOperationError, wrapAwsSmError } from "./aws_sm_errors.ts";
 import { Attr, getTracer } from "./_lib/tracing.ts";
@@ -258,10 +264,25 @@ class AwsSmVaultProvider
   implements VaultProvider, VaultDeleteProvider, VaultAnnotationProvider {
   private readonly client: SecretsManagerClient;
   private readonly name: string;
+  private readonly profile: string | undefined;
 
-  constructor(name: string, config: { region: string }) {
+  constructor(name: string, config: { region: string; profile?: string }) {
     this.name = name;
-    this.client = new SecretsManagerClient({ region: config.region });
+    this.profile = config.profile;
+    // No profile configured: pass no `credentials` at all, so resolution stays
+    // byte-for-byte the default AWS credential chain it has always been.
+    //
+    // Profile configured: fromIni, deliberately not fromNodeProviderChain({
+    // profile }). The node chain consults the env-var provider first and that
+    // provider ignores the profile argument, so AWS_ACCESS_KEY_ID in the
+    // environment would silently outrank the profile the user pinned — the
+    // exact silent-wrong-credentials failure this option exists to prevent.
+    this.client = new SecretsManagerClient({
+      region: config.region,
+      ...(config.profile
+        ? { credentials: fromIni({ profile: config.profile }) }
+        : {}),
+    });
   }
 
   async get(secretKey: string): Promise<string> {
@@ -297,7 +318,7 @@ class AwsSmVaultProvider
           !(err instanceof Error) ||
           !err.message.startsWith("Secret '")
         ) {
-          throw wrapAwsSmError("GetSecretValue", err);
+          throw wrapAwsSmError("GetSecretValue", err, this.profile);
         }
         throw err;
       } finally {
@@ -326,7 +347,7 @@ class AwsSmVaultProvider
         });
         await this.client.send(putCommand);
       } catch (error) {
-        const wrapped = wrapAwsSmError("PutSecretValue", error);
+        const wrapped = wrapAwsSmError("PutSecretValue", error, this.profile);
         if (
           wrapped instanceof AwsSmOperationError &&
           wrapped.name === "ResourceNotFoundException"
@@ -343,7 +364,11 @@ class AwsSmVaultProvider
             });
             await this.client.send(createCommand);
           } catch (createError) {
-            const createWrapped = wrapAwsSmError("CreateSecret", createError);
+            const createWrapped = wrapAwsSmError(
+              "CreateSecret",
+              createError,
+              this.profile,
+            );
             if (createWrapped instanceof Error) {
               span.setStatus({
                 code: SpanStatusCode.ERROR,
@@ -405,7 +430,7 @@ class AwsSmVaultProvider
           span.recordException(err);
           span.setAttribute(Attr.ERROR_TYPE, err.name);
         }
-        throw wrapAwsSmError("ListSecrets", err);
+        throw wrapAwsSmError("ListSecrets", err, this.profile);
       } finally {
         span.end();
       }
@@ -431,7 +456,7 @@ class AwsSmVaultProvider
           span.recordException(err);
           span.setAttribute(Attr.ERROR_TYPE, err.name);
         }
-        throw wrapAwsSmError("DeleteSecret", err);
+        throw wrapAwsSmError("DeleteSecret", err, this.profile);
       } finally {
         span.end();
       }
@@ -483,7 +508,7 @@ class AwsSmVaultProvider
             span.recordException(err);
             span.setAttribute(Attr.ERROR_TYPE, err.name);
           }
-          throw wrapAwsSmError("DescribeSecret", err);
+          throw wrapAwsSmError("DescribeSecret", err, this.profile);
         } finally {
           span.end();
         }
@@ -512,7 +537,7 @@ class AwsSmVaultProvider
               new DescribeSecretCommand({ SecretId: secretKey }),
             );
           } catch (error) {
-            throw wrapAwsSmError("DescribeSecret", error);
+            throw wrapAwsSmError("DescribeSecret", error, this.profile);
           }
           const current = readAnnotationFields(
             existing.Description || undefined,
@@ -536,7 +561,7 @@ class AwsSmVaultProvider
                 }),
               );
             } catch (error) {
-              throw wrapAwsSmError("UpdateSecret", error);
+              throw wrapAwsSmError("UpdateSecret", error, this.profile);
             }
           }
 
@@ -559,7 +584,7 @@ class AwsSmVaultProvider
                 }),
               );
             } catch (error) {
-              throw wrapAwsSmError("TagResource", error);
+              throw wrapAwsSmError("TagResource", error, this.profile);
             }
           }
         } catch (err) {
@@ -599,7 +624,7 @@ class AwsSmVaultProvider
               }),
             );
           } catch (error) {
-            throw wrapAwsSmError("UpdateSecret", error);
+            throw wrapAwsSmError("UpdateSecret", error, this.profile);
           }
 
           let response;
@@ -608,7 +633,7 @@ class AwsSmVaultProvider
               new DescribeSecretCommand({ SecretId: secretKey }),
             );
           } catch (error) {
-            throw wrapAwsSmError("DescribeSecret", error);
+            throw wrapAwsSmError("DescribeSecret", error, this.profile);
           }
 
           const tagKeysToRemove: string[] = [];
@@ -628,7 +653,7 @@ class AwsSmVaultProvider
                 }),
               );
             } catch (error) {
-              throw wrapAwsSmError("UntagResource", error);
+              throw wrapAwsSmError("UntagResource", error, this.profile);
             }
           }
         } catch (err) {
@@ -704,7 +729,7 @@ class AwsSmVaultProvider
             span.recordException(err);
             span.setAttribute(Attr.ERROR_TYPE, err.name);
           }
-          throw wrapAwsSmError("ListSecrets", err);
+          throw wrapAwsSmError("ListSecrets", err, this.profile);
         } finally {
           span.end();
         }
@@ -721,10 +746,12 @@ export const vault = {
   type: "@swamp/aws-sm",
   name: "AWS Secrets Manager",
   description:
-    "AWS Secrets Manager vault provider. Uses the default AWS credential chain for authentication.",
+    "AWS Secrets Manager vault provider. Authenticates via the default AWS credential chain, or a named profile when one is configured.",
   configSchema: z.object({
     // deno-fmt-ignore
     region: z.string().min(1).describe("AWS region where the Secrets Manager secrets are stored e.g. us-east-1"),
+    // deno-fmt-ignore
+    profile: z.string().min(1).optional().describe("Named AWS profile from ~/.aws/config or ~/.aws/credentials. When omitted, the default AWS credential chain is used. A configured profile takes precedence over environment-variable credentials."),
   }).strict(),
   createProvider(
     name: string,

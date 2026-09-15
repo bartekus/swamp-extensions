@@ -69,9 +69,57 @@ export class AwsSmOperationError extends Error {
 }
 
 /**
+ * Message shapes the AWS SDK uses when a named profile cannot be resolved from
+ * the shared config/credentials files. Matched narrowly and only when a profile
+ * is actually configured; anything else falls through to the shared
+ * classification untouched.
+ */
+// Verified against @aws-sdk/credential-providers@3.1127.0, which produces:
+//   "Could not resolve credentials using profile: [name] in
+//    configuration/credentials file(s)."
+// The other alternatives cover wordings used elsewhere in the SDK's ini and
+// SSO paths. Kept narrow on purpose: a non-match falls through to the shared
+// classification rather than being swallowed, and the unit tests below pin
+// both directions so an SDK rewording fails loudly instead of silently
+// restoring the misleading SSO hint.
+const PROFILE_NOT_FOUND_RE =
+  /could not resolve credentials using profile|could not be found|not defined in shared configuration|profile .* was not found/i;
+
+/**
+ * Hint for the failure mode the `profile` config option introduces: the profile
+ * itself is missing or unresolvable.
+ *
+ * Without this, such failures are reported as an expired SSO session.
+ * `classifyAwsCredentialError` maps `CredentialsProviderError` to
+ * `session-expired`, so a typo'd or absent profile produces "your AWS profile's
+ * SSO session is no longer valid. Run 'aws sso login --profile X'" — advice for
+ * a profile that may not exist and may never have been SSO-based. The
+ * classifier lives in the generated `_lib/aws_credentials.ts` (canonical source
+ * `codegen/shared/awsCredentials.ts`, shared with datastore/s3), so the
+ * disambiguation is done here at the vault boundary instead of widening this
+ * change into codegen.
+ */
+function formatProfileNotFoundHint(
+  profile: string | undefined,
+  err: Error,
+): string | undefined {
+  if (profile === undefined) return undefined;
+  if (!PROFILE_NOT_FOUND_RE.test(err.message)) return undefined;
+  return (
+    "Vault AWS profile '" + profile + "' was not found in ~/.aws/config or " +
+    "~/.aws/credentials: check the profile name in the vault config, or run " +
+    "'aws configure list-profiles' to see the profiles available."
+  );
+}
+
+/**
  * Wrap an SDK error from a Secrets Manager command as an
  * `AwsSmOperationError` with status, code, requestId, and a
  * credential-remediation hint when applicable.
+ *
+ * `profile` is the vault's configured AWS profile, when it has one. It takes
+ * precedence over `AWS_PROFILE` for hint purposes, because a vault pinned to a
+ * profile is not using whatever the environment names.
  *
  * The Unknown/UnknownError suppression is empirically required: at
  * @aws-sdk/client-secrets-manager@3.1024.0, an HTTP 400 response with
@@ -80,7 +128,11 @@ export class AwsSmOperationError extends Error {
  * message would read e.g. "AWS Secrets Manager get failed HTTP 400
  * Unknown — UnknownError" — noisy, with no useful signal.
  */
-export function wrapAwsSmError(op: string, err: unknown): Error {
+export function wrapAwsSmError(
+  op: string,
+  err: unknown,
+  profile?: string,
+): Error {
   if (!(err instanceof Error)) return new Error(String(err));
   const e = err as Error & {
     $metadata?: { httpStatusCode?: number; requestId?: string };
@@ -91,11 +143,11 @@ export function wrapAwsSmError(op: string, err: unknown): Error {
   const code = deriveAwsErrorCode(e);
 
   const credentialKind = classifyAwsCredentialError(code, status);
-  const credentialHint = formatAwsCredentialHint(
-    credentialKind,
-    Deno.env.get("AWS_PROFILE"),
-    "Vault",
-  );
+  // A configured profile wins over AWS_PROFILE: the vault is pinned to it, so
+  // any remediation command must name it and not whatever the shell exports.
+  const hintProfile = profile ?? Deno.env.get("AWS_PROFILE");
+  const credentialHint = formatProfileNotFoundHint(profile, e) ??
+    formatAwsCredentialHint(credentialKind, hintProfile, "Vault");
 
   const parts: string[] = [];
   if (credentialHint) parts.push(credentialHint);
@@ -105,8 +157,15 @@ export function wrapAwsSmError(op: string, err: unknown): Error {
   const rawMsg = e.message && e.message !== "UnknownError" ? e.message : "";
   if (rawMsg) parts.push(`— ${rawMsg}`);
   if ((status === 401 || status === 403) && credentialKind === "other") {
+    // A 403 whose body the SDK could not parse lands here. Name the vault's
+    // configured profile when it has one: the generic wording sends the reader
+    // to check "profile, env vars, or credential provider" when a pinned vault
+    // is using exactly one of those and the others are irrelevant.
     parts.push(
-      "(check AWS credentials — profile, env vars, or credential provider — then retry)",
+      hintProfile
+        ? "(check AWS credentials for profile '" + hintProfile +
+          "', then retry)"
+        : "(check AWS credentials — profile, env vars, or credential provider — then retry)",
     );
   }
   if (requestId) parts.push(`[requestId=${requestId}]`);

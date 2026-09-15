@@ -5,6 +5,7 @@
     "jsr:@std/internal@^1.0.12": "1.0.14",
     "jsr:@systeminit/swamp-testing@0.20260521.16": "0.20260521.16",
     "npm:@aws-sdk/client-secrets-manager@3.1127.0": "3.1127.0",
+    "npm:@aws-sdk/credential-providers@3.1127.0": "3.1127.0",
     "npm:@marcbachmann/cel-js@7.6.1": "7.6.1",
     "npm:@opentelemetry/api@1.9.0": "1.9.0",
     "npm:zod@4.3.6": "4.3.6",
@@ -43,8 +44,8 @@
         "tslib"
       ]
     },
-    "@aws-sdk/core@3.977.9": {
-      "integrity": "sha512-reqPFEQrZxDZpeGj4PFMepBeR5LGYHRqq/L0motTzgFkCRBA4rFdaVXDSLYyGHhxVz7sT2PDnPN9CluGSfgyJA==",
+    "@aws-sdk/core@3.978.0": {
+      "integrity": "sha512-2yX9LUmxPklVjSGTb8dfnWRJSiFQ3TeH2nn7G1mdKHTfnabzF0+gfrS8rYfLWmZrQ8A3mEcxMJjRc51dL5KWaA==",
       "dependencies": [
         "@aws-sdk/types",
         "@aws-sdk/xml-builder",
@@ -53,6 +54,16 @@
         "@smithy/signature-v4",
         "@smithy/types",
         "bowser",
+        "tslib"
+      ]
+    },
+    "@aws-sdk/credential-provider-cognito-identity@3.972.70": {
+      "integrity": "sha512-KlU89w6Hmb4oZB5zFz/MNIhPOBQGVE7KrDr3BTPCwC4W+q566YH8tGNsAML781LKATtqmNCGFry8XvsJ2XPusg==",
+      "dependencies": [
+        "@aws-sdk/nested-clients",
+        "@aws-sdk/types",
+        "@smithy/core",
+        "@smithy/types",
         "tslib"
       ]
     },
@@ -156,8 +167,29 @@
         "tslib"
       ]
     },
-    "@aws-sdk/nested-clients@3.997.44": {
-      "integrity": "sha512-NhEgryjlBF9w38ZXqGymQV28IhkYa1mKhlbYnqIis57AYwWGVYfUPgg/qC2rLRqOUfblxx++irvju10kVTa8Vw==",
+    "@aws-sdk/credential-providers@3.1127.0": {
+      "integrity": "sha512-zyoeKOan26lklS12+Iwj1aX8EidoAheQaVRmltee0EAC3eydTy+AIXtLOsVicYSOVsDjPJMiVykT/7n47ARpag==",
+      "dependencies": [
+        "@aws-sdk/core",
+        "@aws-sdk/credential-provider-cognito-identity",
+        "@aws-sdk/credential-provider-env",
+        "@aws-sdk/credential-provider-http",
+        "@aws-sdk/credential-provider-ini",
+        "@aws-sdk/credential-provider-login",
+        "@aws-sdk/credential-provider-node",
+        "@aws-sdk/credential-provider-process",
+        "@aws-sdk/credential-provider-sso",
+        "@aws-sdk/credential-provider-web-identity",
+        "@aws-sdk/nested-clients",
+        "@aws-sdk/types",
+        "@smithy/core",
+        "@smithy/credential-provider-imds",
+        "@smithy/types",
+        "tslib"
+      ]
+    },
+    "@aws-sdk/nested-clients@3.997.45": {
+      "integrity": "sha512-mooq9Q+jLa18VoM7HouczmslZU60iiB0aKc/Ztnq/luIL1ud0z4DnYprLR/ZO1gp331S9tJctM1HZr7u6YKBXQ==",
       "dependencies": [
         "@aws-sdk/core",
         "@aws-sdk/signature-v4-multi-region",
@@ -272,6 +304,7 @@
     "dependencies": [
       "jsr:@systeminit/swamp-testing@0.20260521.16",
       "npm:@aws-sdk/client-secrets-manager@3.1127.0",
+      "npm:@aws-sdk/credential-providers@3.1127.0",
       "npm:@opentelemetry/api@1.9.0",
       "npm:zod@4.3.6"
     ]
