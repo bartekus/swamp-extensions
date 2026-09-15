@@ -595,6 +595,10 @@ const StateSchema = z.object({
         safetySettings: z.array(z.unknown()),
       }),
       name: z.string(),
+      supervisor: z.object({
+        detectionMode: z.string(),
+        type: z.string(),
+      }),
       updateTime: z.string(),
     })),
     tools: z.array(z.object({
@@ -810,7 +814,10 @@ const StateSchema = z.object({
           serviceAgentIdTokenAuthConfig: z.unknown(),
         }),
         description: z.string(),
+        inputVariableMapping: z.record(z.string(), z.unknown()),
         name: z.string(),
+        outputVariableMapping: z.record(z.string(), z.unknown()),
+        statefulAgent: z.boolean(),
       }),
       systemTool: z.object({
         description: z.string(),
@@ -983,7 +990,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps.Versions. Registered at `@swamp/gcp/ces/apps-versions`. */
 export const model = {
   type: "@swamp/gcp/ces/apps-versions",
-  version: "2026.09.07.1",
+  version: "2026.09.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1220,6 +1227,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -82,7 +82,12 @@ const GlobalArgsSchema = z.object({
 
 const ResourceSchema = z.object({
   description: z.string().nullable().optional(),
-  variants: z.array(z.record(z.string(), z.unknown())).nullable().optional(),
+  variants: z.array(z.object({
+    description: z.string().optional(),
+    label: z.string().optional(),
+    value: z.string().optional(),
+    id: z.string().optional(),
+  })).nullable().optional(),
   id: z.string(),
   environments: z.record(z.string(), z.unknown()).nullable().optional(),
   kind: z.string().nullable().optional(),
@@ -136,7 +141,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Flags. Registered at `@swamp/vercel/feature-flags/flags`. */
 export const model = {
   type: "@swamp/vercel/feature-flags/flags",
-  version: "2026.08.19.1",
+  version: "2026.09.15.1",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -185,6 +190,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

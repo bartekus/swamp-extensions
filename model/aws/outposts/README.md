@@ -14,8 +14,8 @@ methods:
 - **delete** — remove the resource from AWS
 - **sync** — refresh all resource properties from AWS
 
-Use `swamp model type describe @swamp/aws/outposts/site` to see the full list of
-configurable properties and available methods for this model.
+Use `swamp model type describe @swamp/aws/outposts/outpost` to see the full list
+of configurable properties and available methods for this model.
 
 ## Authentication
 
@@ -47,17 +47,17 @@ export AWS_SECRET_ACCESS_KEY=wJal...
 ## Usage
 
 ```bash
-# Create a new site model
-swamp model create @swamp/aws/outposts/site my-site
+# Create a new outpost model
+swamp model create @swamp/aws/outposts/outpost my-outpost
 
 # Edit the model to configure its properties
-swamp model edit my-site
+swamp model edit my-outpost
 
 # Create the resource in AWS
-swamp model method run my-site create
+swamp model method run my-outpost create
 
 # Sync current state from AWS
-swamp model method run my-site sync
+swamp model method run my-outpost sync
 ```
 
 ## License

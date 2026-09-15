@@ -225,7 +225,6 @@ const GlobalArgsSchema = z.object({
         "ARRAY",
         "STRUCT",
         "RANGE",
-        "UUID",
       ]).describe(
         'Required. The top level type of this field. Can be any GoogleSQL data type (e.g., "INT64", "DATE", "ARRAY").',
       ).optional(),
@@ -1328,7 +1327,6 @@ const GlobalArgsSchema = z.object({
         "ARRAY",
         "STRUCT",
         "RANGE",
-        "UUID",
       ]).describe(
         'Required. The top level type of this field. Can be any GoogleSQL data type (e.g., "INT64", "DATE", "ARRAY").',
       ).optional(),
@@ -2214,7 +2212,6 @@ const GlobalArgsSchema = z.object({
         "ARRAY",
         "STRUCT",
         "RANGE",
-        "UUID",
       ]).describe(
         'Required. The top level type of this field. Can be any GoogleSQL data type (e.g., "INT64", "DATE", "ARRAY").',
       ).optional(),
@@ -2966,7 +2963,6 @@ const InputsSchema = z.object({
         "ARRAY",
         "STRUCT",
         "RANGE",
-        "UUID",
       ]).describe(
         'Required. The top level type of this field. Can be any GoogleSQL data type (e.g., "INT64", "DATE", "ARRAY").',
       ).optional(),
@@ -4069,7 +4065,6 @@ const InputsSchema = z.object({
         "ARRAY",
         "STRUCT",
         "RANGE",
-        "UUID",
       ]).describe(
         'Required. The top level type of this field. Can be any GoogleSQL data type (e.g., "INT64", "DATE", "ARRAY").',
       ).optional(),
@@ -4955,7 +4950,6 @@ const InputsSchema = z.object({
         "ARRAY",
         "STRUCT",
         "RANGE",
-        "UUID",
       ]).describe(
         'Required. The top level type of this field. Can be any GoogleSQL data type (e.g., "INT64", "DATE", "ARRAY").',
       ).optional(),
@@ -4994,7 +4988,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud BigQuery Models. Registered at `@swamp/gcp/bigquery/models`. */
 export const model = {
   type: "@swamp/gcp/bigquery/models",
-  version: "2026.09.14.1",
+  version: "2026.09.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -5143,6 +5137,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.14.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

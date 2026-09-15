@@ -360,6 +360,9 @@ const GlobalArgsSchema = z.object({
         createTime: z.string().describe(
           "The time at which the object context was created in RFC 3339 format.",
         ).optional(),
+        extendedDataTypeUrl: z.string().describe(
+          "The type URL of the object context's extended data.",
+        ).optional(),
         updateTime: z.string().describe(
           "The time at which the object context was last updated in RFC 3339 format.",
         ).optional(),
@@ -619,6 +622,9 @@ const InputsSchema = z.object({
         createTime: z.string().describe(
           "The time at which the object context was created in RFC 3339 format.",
         ).optional(),
+        extendedDataTypeUrl: z.string().describe(
+          "The type URL of the object context's extended data.",
+        ).optional(),
         updateTime: z.string().describe(
           "The time at which the object context was last updated in RFC 3339 format.",
         ).optional(),
@@ -766,7 +772,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Storage JSON Objects. Registered at `@swamp/gcp/storage/objects`. */
 export const model = {
   type: "@swamp/gcp/storage/objects",
-  version: "2026.09.07.1",
+  version: "2026.09.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -911,6 +917,11 @@ export const model = {
     {
       toVersion: "2026.09.07.1",
       description: "Added: overrideUnlockedRetention",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.15.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

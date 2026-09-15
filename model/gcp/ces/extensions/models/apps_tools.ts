@@ -996,7 +996,16 @@ const GlobalArgsSchema = z.object({
     ).optional(),
     description: z.string().describe("Required. The description of the tool.")
       .optional(),
+    inputVariableMapping: z.record(z.string(), z.string()).describe(
+      "Optional. Mapping of input variable names of remote agent to GECX variable names.",
+    ).optional(),
     name: z.string().describe("Required. The name of the tool.").optional(),
+    outputVariableMapping: z.record(z.string(), z.string()).describe(
+      "Optional. Mapping of output variable names of remote agent to GECX variable names.",
+    ).optional(),
+    statefulAgent: z.boolean().describe(
+      "Optional. When enabled, the interaction between the CXAS app and the remote agent will share the same context. If the remote agent returns a context_id, it will be persisted for the entirety of the session for this remote agent tool.",
+    ).optional(),
   }).describe("Optional. The remote agent tool.").optional(),
   systemTool: z.object({
     description: z.string().describe(
@@ -1505,7 +1514,10 @@ const StateSchema = z.object({
       serviceAgentIdTokenAuthConfig: z.object({}),
     }),
     description: z.string(),
+    inputVariableMapping: z.record(z.string(), z.unknown()),
     name: z.string(),
+    outputVariableMapping: z.record(z.string(), z.unknown()),
+    statefulAgent: z.boolean(),
   }).optional(),
   systemTool: z.object({
     description: z.string(),
@@ -2402,7 +2414,16 @@ const InputsSchema = z.object({
     ).optional(),
     description: z.string().describe("Required. The description of the tool.")
       .optional(),
+    inputVariableMapping: z.record(z.string(), z.string()).describe(
+      "Optional. Mapping of input variable names of remote agent to GECX variable names.",
+    ).optional(),
     name: z.string().describe("Required. The name of the tool.").optional(),
+    outputVariableMapping: z.record(z.string(), z.string()).describe(
+      "Optional. Mapping of output variable names of remote agent to GECX variable names.",
+    ).optional(),
+    statefulAgent: z.boolean().describe(
+      "Optional. When enabled, the interaction between the CXAS app and the remote agent will share the same context. If the remote agent returns a context_id, it will be persisted for the entirety of the session for this remote agent tool.",
+    ).optional(),
   }).describe("Optional. The remote agent tool.").optional(),
   systemTool: z.object({
     description: z.string().describe(
@@ -2599,7 +2620,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps.Tools. Registered at `@swamp/gcp/ces/apps-tools`. */
 export const model = {
   type: "@swamp/gcp/ces/apps-tools",
-  version: "2026.08.28.1",
+  version: "2026.09.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -2788,6 +2809,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

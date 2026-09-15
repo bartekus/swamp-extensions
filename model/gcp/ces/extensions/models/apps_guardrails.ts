@@ -393,6 +393,24 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Identifier. The unique identifier of the guardrail. Format: `projects/{project}/locations/{location}/apps/{app}/guardrails/{guardrail}`",
   ).optional(),
+  supervisor: z.object({
+    detectionMode: z.enum([
+      "DETECTION_MODE_UNSPECIFIED",
+      "NON_BLOCKING",
+      "BLOCKING",
+    ]).describe("Optional. The detection mode of the supervisor.").optional(),
+    type: z.enum([
+      "TYPE_UNSPECIFIED",
+      "INVALID_TEXT",
+      "LANGUAGE_SHIFT",
+      "SPEAKER_SHIFT",
+      "AUDIO_MISMATCH",
+      "MISSING_TOOL_CALL",
+      "CUSTOM",
+      "CHOPPY_AUDIO",
+    ]).describe("Optional. The type of the supervisor.").optional(),
+  }).describe("Optional. Guardrail that runs supervisor intervention.")
+    .optional(),
   guardrailId: z.string().describe(
     "Optional. The ID to use for the guardrail, which will become the final component of the guardrail's resource name. If not provided, a unique ID will be automatically assigned for the guardrail.",
   ).optional(),
@@ -492,6 +510,10 @@ const StateSchema = z.object({
     })),
   }).optional(),
   name: z.string(),
+  supervisor: z.object({
+    detectionMode: z.string(),
+    type: z.string(),
+  }).optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -727,6 +749,24 @@ const InputsSchema = z.object({
   name: z.string().describe(
     "Identifier. The unique identifier of the guardrail. Format: `projects/{project}/locations/{location}/apps/{app}/guardrails/{guardrail}`",
   ).optional(),
+  supervisor: z.object({
+    detectionMode: z.enum([
+      "DETECTION_MODE_UNSPECIFIED",
+      "NON_BLOCKING",
+      "BLOCKING",
+    ]).describe("Optional. The detection mode of the supervisor.").optional(),
+    type: z.enum([
+      "TYPE_UNSPECIFIED",
+      "INVALID_TEXT",
+      "LANGUAGE_SHIFT",
+      "SPEAKER_SHIFT",
+      "AUDIO_MISMATCH",
+      "MISSING_TOOL_CALL",
+      "CUSTOM",
+      "CHOPPY_AUDIO",
+    ]).describe("Optional. The type of the supervisor.").optional(),
+  }).describe("Optional. Guardrail that runs supervisor intervention.")
+    .optional(),
   guardrailId: z.string().describe(
     "Optional. The ID to use for the guardrail, which will become the final component of the guardrail's resource name. If not provided, a unique ID will be automatically assigned for the guardrail.",
   ).optional(),
@@ -764,7 +804,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps.Guardrails. Registered at `@swamp/gcp/ces/apps-guardrails`. */
 export const model = {
   type: "@swamp/gcp/ces/apps-guardrails",
-  version: "2026.08.28.1",
+  version: "2026.09.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -901,6 +941,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.15.1",
+      description: "Added: supervisor",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -948,6 +993,7 @@ export const model = {
           body["modelSafety"] = g["modelSafety"];
         }
         if (g["name"] !== undefined) body["name"] = g["name"];
+        if (g["supervisor"] !== undefined) body["supervisor"] = g["supervisor"];
         if (g["guardrailId"] !== undefined) {
           params["guardrailId"] = String(g["guardrailId"]);
         }
@@ -1080,6 +1126,7 @@ export const model = {
         if (g["modelSafety"] !== undefined) {
           body["modelSafety"] = g["modelSafety"];
         }
+        if (g["supervisor"] !== undefined) body["supervisor"] = g["supervisor"];
         const updateMaskKeys = Object.keys(body);
         if (updateMaskKeys.length > 0) {
           params["updateMask"] = updateMaskKeys.join(",");

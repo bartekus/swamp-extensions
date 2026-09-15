@@ -522,6 +522,7 @@ const StateSchema = z.object({
         deliver: z.unknown(),
         description: z.unknown(),
         directVpcEgressConnection: z.unknown(),
+        directVpcIngressConnection: z.unknown(),
         dmsPrivateConnection: z.unknown(),
         drop: z.unknown(),
         endpoint: z.unknown(),
@@ -591,6 +592,7 @@ const StateSchema = z.object({
         deliver: z.unknown(),
         description: z.unknown(),
         directVpcEgressConnection: z.unknown(),
+        directVpcIngressConnection: z.unknown(),
         dmsPrivateConnection: z.unknown(),
         drop: z.unknown(),
         endpoint: z.unknown(),
@@ -942,7 +944,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Management Global.ConnectivityTests. Registered at `@swamp/gcp/networkmanagement/global-connectivitytests`. */
 export const model = {
   type: "@swamp/gcp/networkmanagement/global-connectivitytests",
-  version: "2026.09.07.2",
+  version: "2026.09.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1182,6 +1184,11 @@ export const model = {
         } = old;
         return rest;
       },
+    },
+    {
+      toVersion: "2026.09.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   globalArguments: GlobalArgsSchema,

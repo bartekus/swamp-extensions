@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/route53"
-version: "2026.09.14.1"
+version: "2026.09.15.1"
 description: "AWS ROUTE53 infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -9,6 +9,8 @@ labels:
   - route53
   - cloud
   - infrastructure
+releaseNotes: |
+  - Added: traffic_policy
 models:
   - cidr_collection.ts
   - dnssec.ts
@@ -16,6 +18,7 @@ models:
   - hosted_zone.ts
   - key_signing_key.ts
   - record_set.ts
+  - traffic_policy.ts
 additionalFiles:
   - LICENSE.txt
   - README.md

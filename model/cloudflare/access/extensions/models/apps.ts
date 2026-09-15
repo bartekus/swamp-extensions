@@ -585,9 +585,27 @@ const GlobalArgsSchema = z.object({
     "Determines when to skip the App Launcher landing page.",
   ).optional(),
   target_criteria: z.array(z.object({
+    exclude: z.object({
+      tags: z.record(z.string(), z.unknown()).optional(),
+      target_attributes: z.object({
+        hostname: z.array(z.string().min(1)).optional(),
+      }).optional(),
+    }).optional(),
+    include: z.object({
+      tags: z.record(z.string(), z.unknown()).optional(),
+      target_attributes: z.object({
+        hostname: z.array(z.string().min(1)).optional(),
+      }).optional(),
+    }).optional(),
     port: z.number().int(),
-    target_attributes: z.record(z.string(), z.unknown()),
-    protocol: z.enum(["SSH"]),
+    require: z.object({
+      tags: z.record(z.string(), z.unknown()).optional(),
+      target_attributes: z.object({
+        hostname: z.array(z.string().min(1)).optional(),
+      }).optional(),
+    }).optional(),
+    target_attributes: z.record(z.string(), z.unknown()).optional(),
+    protocol: z.string(),
   })).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -1055,7 +1073,25 @@ const ResourceSchema = z.object({
     }).optional(),
     skip_app_launcher_login_page: z.boolean().optional(),
     target_criteria: z.array(z.object({
+      exclude: z.object({
+        tags: z.record(z.string(), z.unknown()).optional(),
+        target_attributes: z.object({
+          hostname: z.array(z.string()).optional(),
+        }).optional(),
+      }).optional(),
+      include: z.object({
+        tags: z.record(z.string(), z.unknown()).optional(),
+        target_attributes: z.object({
+          hostname: z.array(z.string()).optional(),
+        }).optional(),
+      }).optional(),
       port: z.number().optional(),
+      require: z.object({
+        tags: z.record(z.string(), z.unknown()).optional(),
+        target_attributes: z.object({
+          hostname: z.array(z.string()).optional(),
+        }).optional(),
+      }).optional(),
       target_attributes: z.record(z.string(), z.unknown()).optional(),
       protocol: z.string().optional(),
     })).optional(),
@@ -1538,9 +1574,27 @@ const InputsSchema = z.object({
   }).optional(),
   skip_app_launcher_login_page: z.boolean().optional(),
   target_criteria: z.array(z.object({
+    exclude: z.object({
+      tags: z.record(z.string(), z.unknown()).optional(),
+      target_attributes: z.object({
+        hostname: z.array(z.string().min(1)).optional(),
+      }).optional(),
+    }).optional(),
+    include: z.object({
+      tags: z.record(z.string(), z.unknown()).optional(),
+      target_attributes: z.object({
+        hostname: z.array(z.string().min(1)).optional(),
+      }).optional(),
+    }).optional(),
     port: z.number().int(),
-    target_attributes: z.record(z.string(), z.unknown()),
-    protocol: z.enum(["SSH"]),
+    require: z.object({
+      tags: z.record(z.string(), z.unknown()).optional(),
+      target_attributes: z.object({
+        hostname: z.array(z.string().min(1)).optional(),
+      }).optional(),
+    }).optional(),
+    target_attributes: z.record(z.string(), z.unknown()).optional(),
+    protocol: z.string(),
   })).optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
   apiKey: z.string().meta({ sensitive: true }).optional(),
@@ -1550,7 +1604,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Apps. Registered at `@swamp/cloudflare/access/apps`. */
 export const model = {
   type: "@swamp/cloudflare/access/apps",
-  version: "2026.09.04.1",
+  version: "2026.09.15.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -1599,6 +1653,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.04.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

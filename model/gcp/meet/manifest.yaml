@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/meet"
-version: "2026.08.12.2"
+version: "2026.09.15.1"
 description: "Google Cloud meet infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: conferencerecords, conferencerecords_participants, conferencerecords_participants_participantsessions, conferencerecords_recordings, conferencerecords_smartnotes, conferencerecords_transcripts, conferencerecords_transcripts_entries, spaces
+  - Added: spaces_members
 models:
   - conferencerecords.ts
   - conferencerecords_participants.ts
@@ -21,6 +21,7 @@ models:
   - conferencerecords_transcripts.ts
   - conferencerecords_transcripts_entries.ts
   - spaces.ts
+  - spaces_members.ts
 additionalFiles:
   - LICENSE.txt
   - README.md

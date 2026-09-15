@@ -40,7 +40,7 @@ const GlobalArgsSchema = z.object({
     "Vercel team slug (alternative to teamId)",
   ),
   projectId: z.string().describe(
-    "Project ID. Missing or empty values return HTTP 400.",
+    "Project ID or name (slug) within the authenticated team. IDs take precedence over names. Missing or empty values return HTTP 400.",
   ),
   name: z.string().max(255).regex(
     new RegExp("^[a-z0-9]+(?:(?:\\\\.|_|__|-+)[a-z0-9]+)*$"),
@@ -87,7 +87,7 @@ function unwrapResponse(
 /** Swamp extension model for Vercel Repository. Registered at `@swamp/vercel/vcr/repository`. */
 export const model = {
   type: "@swamp/vercel/vcr/repository",
-  version: "2026.09.09.1",
+  version: "2026.09.15.1",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -121,6 +121,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.09.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -46,6 +46,18 @@ const FreeTierSchema = z.object({
   Activated: z.boolean(),
 });
 
+const CustomTierSchema = z.object({
+  BeginRangeInclusive: z.number().min(0).describe(
+    "The inclusive beginning of the tier's usage range.",
+  ),
+  EndRangeExclusive: z.number().min(0).describe(
+    "The exclusive end of the tier's usage range. Omit for the last tier (infinity).",
+  ).optional(),
+  RateValue: z.number().min(0).describe(
+    "The custom rate applied to usage within the tier's range.",
+  ),
+});
+
 const TagSchema = z.object({
   Key: z.string().min(1).max(128),
   Value: z.string().min(1).max(256),
@@ -89,6 +101,9 @@ const GlobalArgsSchema = z.object({
     FreeTier: FreeTierSchema.describe(
       "The possible customizable free tier configurations.",
     ).optional(),
+    CustomTiers: z.array(CustomTierSchema).describe(
+      "The set of custom volume tiers for a SKU-scoped TIERING pricing rule. Tiers must start at 0, be contiguous, and the last tier must have no end range.",
+    ).optional(),
   }).describe("The set of tiering configurations for the pricing rule.")
     .optional(),
   UsageType: z.string().min(1).max(256).regex(new RegExp("^\\S+$")).describe(
@@ -111,6 +126,7 @@ const StateSchema = z.object({
   BillingEntity: z.string().optional(),
   Tiering: z.object({
     FreeTier: FreeTierSchema,
+    CustomTiers: z.array(CustomTierSchema),
   }).optional(),
   UsageType: z.string().optional(),
   Operation: z.string().optional(),
@@ -150,6 +166,9 @@ const InputsSchema = z.object({
     FreeTier: FreeTierSchema.describe(
       "The possible customizable free tier configurations.",
     ).optional(),
+    CustomTiers: z.array(CustomTierSchema).describe(
+      "The set of custom volume tiers for a SKU-scoped TIERING pricing rule. Tiers must start at 0, be contiguous, and the last tier must have no end range.",
+    ).optional(),
   }).describe("The set of tiering configurations for the pricing rule.")
     .optional(),
   UsageType: z.string().min(1).max(256).regex(new RegExp("^\\S+$")).describe(
@@ -180,7 +199,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BillingConductor PricingRule. Registered at `@swamp/aws/billingconductor/pricing-rule`. */
 export const model = {
   type: "@swamp/aws/billingconductor/pricing-rule",
-  version: "2026.08.17.2",
+  version: "2026.09.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -229,6 +248,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

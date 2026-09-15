@@ -42,6 +42,57 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
+const EphemeralStorageConfigurationSchema = z.object({
+  StorageClass: z.enum([
+    "STANDARD_1",
+    "STANDARD_2",
+    "THROUGHPUT_1",
+    "THROUGHPUT_2",
+  ]).describe(
+    "The storage type that determines I/O performance characteristics. Family name indicates workload pattern, level number indicates performance within that family.",
+  ),
+  StorageSizeInGiB: z.number().int().min(1).max(16384).describe(
+    "Storage volume size in GiB.",
+  ),
+});
+
+const S3AccessPointSourceSchema = z.object({
+  AccessPointArn: z.string().min(4).max(128).regex(
+    new RegExp(
+      "^arn:aws(-cn|-us-gov)?:s3:[a-z0-9-]*:\\d{12}:accesspoint[/:][a-zA-Z0-9._-]+$",
+    ),
+  ).describe(
+    "The Amazon Resource Name (ARN) of the Amazon S3 access point. The mount reads objects from the bucket associated with this access point. Access is governed by the access point policy and the task execution role's IAM permissions.",
+  ),
+  Prefix: z.string().min(1).max(1024).describe(
+    "An object key name prefix. If specified, the mount includes only objects whose keys begin with this prefix. To include all objects at the access point, omit this field.",
+  ).optional(),
+});
+
+const MountSourceSchema = z.object({
+  S3AccessPoint: S3AccessPointSourceSchema.describe(
+    "Configures a mount that reads from an Amazon S3 access point.",
+  ),
+});
+
+const MountSchema = z.object({
+  Name: z.string().min(1).max(64).regex(new RegExp("^[a-zA-Z0-9_-]+$"))
+    .describe("A unique name for the mount within the task."),
+  RelativePath: z.string().min(1).max(1024).regex(
+    new RegExp(
+      "^((?!.*(^|/)\\.\\.?(/|$))(?!.*//)[a-zA-Z0-9._-][a-zA-Z0-9._/-]*[a-zA-Z0-9._-]|[a-zA-Z0-9_-])$",
+    ),
+  ).describe(
+    "The relative path under the service-owned mount root where this mount is attached inside the container.",
+  ),
+  Source: MountSourceSchema.describe(
+    "The data source configuration for a mount.",
+  ),
+  StorageType: z.enum(["SHARED_STORAGE"]).describe(
+    "The type of storage used for the mount inside the container.",
+  ),
+});
+
 const ContainerTaskConfigurationSchema = z.object({
   EcrUri: z.string().min(1).max(1024).regex(
     new RegExp(
@@ -83,6 +134,12 @@ const ContainerTaskConfigurationSchema = z.object({
   ).optional(),
   EnvironmentVariables: z.record(z.string(), z.string().max(2048)).describe(
     "A map of environment variable key-value pairs.",
+  ).optional(),
+  EphemeralStorageConfiguration: EphemeralStorageConfigurationSchema.describe(
+    "Configuration for ephemeral storage attached to the container task.",
+  ).optional(),
+  Mounts: z.array(MountSchema).describe(
+    "Mounts attached to the container filesystem. Each mount exposes an external data source as a local directory inside the container.",
   ).optional(),
 });
 
@@ -183,7 +240,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoTSiteWise Task. Registered at `@swamp/aws/iotsitewise/task`. */
 export const model = {
   type: "@swamp/aws/iotsitewise/task",
-  version: "2026.09.04.1",
+  version: "2026.09.15.1",
+  upgrades: [
+    {
+      toVersion: "2026.09.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

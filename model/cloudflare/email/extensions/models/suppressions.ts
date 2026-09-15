@@ -46,9 +46,13 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
-  expires_at: z.string().optional(),
-  note: z.string().max(1000).optional(),
-  email: z.string(),
+  expires_at: z.string().describe(
+    "Expiration timestamp for the suppression. Omit or set to null for a permanent suppression that never expires.",
+  ).optional(),
+  note: z.string().max(1000).describe(
+    "Advisory note for this suppression. Not enforced or validated beyond length.",
+  ).optional(),
+  email: z.string().describe("The email address to suppress."),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -78,7 +82,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Suppressions. Registered at `@swamp/cloudflare/email/suppressions`. */
 export const model = {
   type: "@swamp/cloudflare/email/suppressions",
-  version: "2026.08.25.1",
+  version: "2026.09.15.1",
+  upgrades: [
+    {
+      toVersion: "2026.09.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

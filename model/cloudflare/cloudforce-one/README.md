@@ -16,7 +16,7 @@ that reflect the live state in Cloudflare. Available methods:
 - **delete** — remove the resource from Cloudflare
 - **sync** — refresh all resource properties from the API
 
-Use `swamp model type describe @swamp/cloudflare/cloudforce-one/groups` to see
+Use `swamp model type describe @swamp/cloudflare/cloudforce-one/events` to see
 the full list of configurable properties and available methods for this model.
 
 ## Authentication
@@ -60,17 +60,17 @@ environment variables for the legacy path, while `apiToken` remains available.
 ## Usage
 
 ```bash
-# Create a new groups model
-swamp model create @swamp/cloudflare/cloudforce-one/groups my-groups
+# Create a new events model
+swamp model create @swamp/cloudflare/cloudforce-one/events my-events
 
 # Edit the model to configure its properties
-swamp model edit my-groups
+swamp model edit my-events
 
 # Create the resource in Cloudflare
-swamp model method run my-groups create
+swamp model method run my-events create
 
 # Sync current state from Cloudflare
-swamp model method run my-groups sync
+swamp model method run my-events sync
 ```
 
 ## License

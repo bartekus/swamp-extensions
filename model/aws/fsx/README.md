@@ -14,9 +14,8 @@ methods:
 - **delete** — remove the resource from AWS
 - **sync** — refresh all resource properties from AWS
 
-Use `swamp model type describe @swamp/aws/fsx/data_repository_association` to
-see the full list of configurable properties and available methods for this
-model.
+Use `swamp model type describe @swamp/aws/fsx/backup` to see the full list of
+configurable properties and available methods for this model.
 
 ## Authentication
 
@@ -48,17 +47,17 @@ export AWS_SECRET_ACCESS_KEY=wJal...
 ## Usage
 
 ```bash
-# Create a new data_repository_association model
-swamp model create @swamp/aws/fsx/data_repository_association my-data_repository_association
+# Create a new backup model
+swamp model create @swamp/aws/fsx/backup my-backup
 
 # Edit the model to configure its properties
-swamp model edit my-data_repository_association
+swamp model edit my-backup
 
 # Create the resource in AWS
-swamp model method run my-data_repository_association create
+swamp model method run my-backup create
 
 # Sync current state from AWS
-swamp model method run my-data_repository_association sync
+swamp model method run my-backup sync
 ```
 
 ## License

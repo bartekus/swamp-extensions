@@ -42,6 +42,29 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
+const VectorAttributeSchema = z.object({
+  AttributeName: z.string(),
+});
+
+const ProjectionSchema = z.object({
+  NonKeyAttributes: z.array(z.string()).optional(),
+  ProjectionType: z.string().optional(),
+});
+
+const SearchSchemaElementSchema = z.object({
+  AttributeName: z.string(),
+  SearchSchemaElementType: z.enum(["HASH", "INLINE_FILTER"]),
+});
+
+const VectorIndexSchema = z.object({
+  IndexName: z.string(),
+  VectorAttribute: VectorAttributeSchema,
+  Projection: ProjectionSchema,
+  Dimensions: z.number().int().min(1).max(4096),
+  SearchSchema: z.array(SearchSchemaElementSchema).optional(),
+  DistanceFunction: z.enum(["COSINE", "DOT_PRODUCT", "EUCLIDEAN"]),
+});
+
 const ReplicaSSESpecificationSchema = z.object({
   KMSMasterKeyId: z.string(),
 });
@@ -143,11 +166,6 @@ const AttributeDefinitionSchema = z.object({
   AttributeName: z.string().min(1).max(255),
 });
 
-const ProjectionSchema = z.object({
-  NonKeyAttributes: z.array(z.string()).optional(),
-  ProjectionType: z.string().optional(),
-});
-
 const KeySchemaSchema = z.object({
   KeyType: z.string(),
   AttributeName: z.string().min(1).max(255),
@@ -217,6 +235,7 @@ const GlobalArgsSchema = z.object({
     ReadUnitsPerSecond: z.number().int().min(1).optional(),
     WriteUnitsPerSecond: z.number().int().min(1).optional(),
   }).optional(),
+  VectorIndexes: z.array(VectorIndexSchema).optional(),
   Replicas: z.array(ReplicaSpecificationSchema),
   WriteProvisionedThroughputSettings: z.object({
     WriteCapacityAutoScalingSettings: CapacityAutoScalingSettingsSchema
@@ -256,6 +275,7 @@ const StateSchema = z.object({
     StreamViewType: z.string(),
   }).optional(),
   WarmThroughput: WarmThroughputSchema.optional(),
+  VectorIndexes: z.array(VectorIndexSchema).optional(),
   Replicas: z.array(ReplicaSpecificationSchema).optional(),
   WriteProvisionedThroughputSettings: WriteProvisionedThroughputSettingsSchema
     .optional(),
@@ -300,6 +320,7 @@ const InputsSchema = z.object({
     ReadUnitsPerSecond: z.number().int().min(1).optional(),
     WriteUnitsPerSecond: z.number().int().min(1).optional(),
   }).optional(),
+  VectorIndexes: z.array(VectorIndexSchema).optional(),
   Replicas: z.array(ReplicaSpecificationSchema).optional(),
   WriteProvisionedThroughputSettings: z.object({
     WriteCapacityAutoScalingSettings: CapacityAutoScalingSettingsSchema
@@ -347,7 +368,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DynamoDB GlobalTable. Registered at `@swamp/aws/dynamodb/global-table`. */
 export const model = {
   type: "@swamp/aws/dynamodb/global-table",
-  version: "2026.08.20.1",
+  version: "2026.09.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -422,6 +443,11 @@ export const model = {
     {
       toVersion: "2026.08.20.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.15.1",
+      description: "Added: VectorIndexes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
