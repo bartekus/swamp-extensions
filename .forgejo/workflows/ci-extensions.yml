@@ -15,6 +15,7 @@ on:
       - "software-factory/**"
       - "container-image/**"
       - "git/**"
+      - "typesafe-ai/**"
 
 permissions:
   contents: read
@@ -38,6 +39,7 @@ jobs:
       software-factory: ${{ steps.filter.outputs.software-factory }}
       container-image: ${{ steps.filter.outputs.container-image }}
       git: ${{ steps.filter.outputs.git }}
+      typesafe-ai: ${{ steps.filter.outputs.typesafe-ai }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -65,6 +67,7 @@ jobs:
           check_path software-factory "software-factory/"
           check_path container-image "container-image/"
           check_path git "git/"
+          check_path typesafe-ai "typesafe-ai/"
 
   agent-runner-check:
     name: agent-runner - ${{ matrix.task }}
@@ -526,6 +529,51 @@ jobs:
       - name: Verify lockfile is up to date
         run: deno install --frozen
 
+  typesafe-ai-check:
+    name: typesafe-ai - ${{ matrix.task }}
+    needs: [changes]
+    if: needs.changes.outputs.typesafe-ai == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        task: [check, lint, fmt, test]
+    defaults:
+      run:
+        working-directory: typesafe-ai
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.8.x
+      - name: deno ${{ matrix.task }}
+        run: |
+          if [ "${{ matrix.task }}" = "fmt" ]; then
+            deno fmt --check extensions/models/
+          elif [ "${{ matrix.task }}" = "lint" ]; then
+            deno lint extensions/models/
+          elif [ "${{ matrix.task }}" = "test" ]; then
+            deno test --allow-env --allow-net extensions/models/
+          else
+            deno check extensions/models/typesafe_ai.ts
+          fi
+
+  typesafe-ai-lockfile:
+    name: typesafe-ai - lockfile up to date
+    needs: [changes]
+    if: needs.changes.outputs.typesafe-ai == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: typesafe-ai
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.8.x
+      - name: Verify lockfile is up to date
+        run: deno install --frozen
+
   gate:
     name: "Gate: Extensions"
     if: always()
@@ -551,6 +599,8 @@ jobs:
         container-image-lockfile,
         git-check,
         git-lockfile,
+        typesafe-ai-check,
+        typesafe-ai-lockfile,
       ]
     runs-on: ubuntu-latest
     steps:

@@ -26,7 +26,7 @@ jobs:
       - name: Check for outdated dependencies
         run: |
           has_outdated=false
-          for lockdir in $(find vault datastore model codegen issue-lifecycle kubernetes workflows cve ssh software-factory container-image git -name "deno.lock" -exec dirname {} \;); do
+          for lockdir in $(find vault datastore model codegen issue-lifecycle kubernetes workflows cve ssh software-factory container-image git typesafe-ai -name "deno.lock" -exec dirname {} \;); do
             output=$(cd "$lockdir" && deno outdated 2>&1) || true
             if [ -n "$output" ]; then
               echo "::warning::Outdated dependencies in $lockdir"

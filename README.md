@@ -53,6 +53,12 @@ end-to-end with a single `swamp workflow run`.
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------- |
 | [`@swamp/kubernetes`](kubernetes/) | Kubernetes operational toolkit — 15 model types covering pods, deployments, services, RBAC, storage, networking, autoscaling, batch jobs, and more. Includes 14 ready-to-run workflows for namespace debugging, security audits, RBAC analysis, cluster health, and operational diagnostics. | `@kubernetes/client-node` |
 
+## AI Extensions
+
+| Extension                                  | Description                                                                                                                                                  | Dependencies                              |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------- |
+| [`@swamp/typesafe-ai`](typesafe-ai/) | Ask TypeSafe System One models (Jev) typed Noul, Choice, and Score questions and branch workflows on the calibrated answers stored as swamp resources. | None (TypeSafe REST API via `fetch`) |
+
 ## Model Extensions (Auto-Generated)
 
 | Extension                                      | Description                         |
@@ -97,6 +103,9 @@ swamp extension pull @swamp/ssh
 
 # Kubernetes
 swamp extension pull @swamp/kubernetes
+
+# AI
+swamp extension pull @swamp/typesafe-ai
 
 # Model extensions
 swamp extension pull @swamp/hetzner-cloud

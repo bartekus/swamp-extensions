@@ -1,0 +1,67 @@
+manifestVersion: 1
+name: "@swamp/typesafe-ai"
+version: "2026.09.15.1"
+description: |
+  Ask TypeSafe's System One models (Jev) typed questions from swamp and
+  branch workflows on the calibrated answers. Jev does not generate text: it
+  takes application state plus typed questions and returns a probability for
+  a yes/no question (Noul), a selected option with a full distribution
+  (Choice), or a weighted position along an ordered rubric (Score).
+
+  Every method calls `POST /v1/systemone` directly with `fetch` (no SDK),
+  retries transient failures with exponential backoff that honours
+  `Retry-After`, and writes one resource per evaluation so later workflow
+  steps can read the answer with CEL.
+
+  ## Methods
+
+  | Method   | What it does |
+  | -------- | ------------ |
+  | `noul`   | Ask one yes/no question; stores the probability of yes as `noul`. |
+  | `choice` | Pick one option from a defined set; stores `choice`, `probabilities`, `confidence`. |
+  | `score`  | Rate state along ordered levels; stores `score`, `legend`, `probabilities`, `confidence`. |
+  | `ask`    | Evaluate a map of typed questions in a single request; stores `answers.<id>.*`. |
+  | `models` | List the System One models available to the account. |
+
+  Each evaluation lands as `<spec>-<name>` (default name `latest`) so several
+  evaluations can live side by side, and every resource records `model`,
+  `state`, `usage`, and `evaluatedAt`.
+
+  ## Credentials
+
+  Supply the API key with the `apiKey` global argument, ideally as a vault
+  reference: `${{ vault.get("typesafe", "TYPESAFE_API_KEY") }}`. When omitted
+  the model falls back to the `TYPESAFE_API_KEY` environment variable. The
+  `api-key-configured` pre-flight check (label `policy`) fails early when no
+  key is available.
+
+  ## Usage
+
+  ```bash
+  swamp extension pull @swamp/typesafe-ai
+
+  swamp model create @swamp/typesafe-ai jev \
+    --global-arg 'apiKey=${{ vault.get("typesafe", "TYPESAFE_API_KEY") }}'
+
+  swamp model method run jev noul \
+    --input state="Help! My payouts have been failing for 3 days." \
+    --input instructions="Does this convey urgency?" \
+    --input name=urgency
+
+  # In a workflow guard:
+  #   ${{ data.latest("jev", "noul-urgency").attributes.noul > 0.8 }}
+  ```
+
+  See the bundled README for the full argument reference and worked examples.
+repository: "https://github.com/swamp-club/swamp-extensions"
+models:
+  - typesafe_ai.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []
+labels:
+  - ai
+  - typesafe
+  - classification
+  - llm
