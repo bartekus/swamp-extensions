@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/git"
-version: "2026.08.30.1"
+version: "2026.09.15.1"
 description: |
   Git repository operations for swamp workflows. Wraps the git CLI
   and returns structured data (file lists, commit objects, status
@@ -23,8 +23,8 @@ description: |
   | `upstream_state` | Tracking-branch state: configured upstream, tracking-ref availability, ahead/behind counts, pushed/synced flags. |
   | `is_ancestor` | Check if one commit is an ancestor of another (read-only, via git merge-base --is-ancestor). |
   | `log`    | Commit history with structured entries (SHA, author, date, message). |
-  | `commit` | Stage files and create a commit. |
-  | `amend`  | Amend the most recent commit — rewrite message and/or staged content. Records old and new SHA. |
+  | `commit` | Stage files and create a commit, optionally at a chosen author/committer date. |
+  | `amend`  | Amend the most recent commit — rewrite message, staged content, and/or dates. Records old and new SHA. |
   | `push`   | Push commits to a remote (with optional force, force-with-lease, and set-upstream). |
   | `pull`   | Pull changes from a remote (with optional rebase and ff-only). |
   | `fetch`  | Fetch refs from a remote with optional tag and prune support. |

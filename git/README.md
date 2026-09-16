@@ -173,6 +173,51 @@ swamp model method run repo push \
   --json
 ```
 
+### Commit at a Specific Date (History Reconstruction)
+
+When commit time is data — importing from another VCS, replaying an event log,
+reconstructing history — set the dates explicitly instead of taking wall clock:
+
+```bash
+swamp model method run repo commit \
+  --input "message=import: 2001 changeset" \
+  --input addAll=true \
+  --input authorDate="2001-02-03T04:05:06+00:00" \
+  --json
+```
+
+Any format git accepts works: ISO 8601, RFC 2822, `@<epoch> <tz>`, or relative
+forms like `"2 hours ago"`. Git validates the value and fails the method with
+`invalid date format` if it cannot parse it.
+
+**`authorDate` sets both dates by default.** This is deliberate.
+`git commit --date` sets only the author date, leaving a real wall-clock
+committer timestamp on every object — invisible in default `git log` output and
+surprising whenever something finally surfaces it. To make the two differ, set
+`committerDate` explicitly:
+
+```bash
+swamp model method run repo commit \
+  --input "message=applied later than authored" \
+  --input authorDate="2001-02-03T04:05:06+00:00" \
+  --input committerDate="2011-12-13T14:15:16+00:00" \
+  --json
+```
+
+`amend` takes the same two inputs and preserves the original commit's author
+name and email while rewriting its dates:
+
+```bash
+swamp model method run repo amend \
+  --input keepMessage=true \
+  --input authorDate="2001-02-03T04:05:06+00:00" \
+  --json
+```
+
+Both methods report the resulting `authorDate` and `committerDate` in their
+result data, which is the only place the committer date is visible — the `log`
+method reports author dates only.
+
 ### Get and Set Config
 
 ```bash
@@ -343,8 +388,8 @@ swamp data query repo 'tags.clean == "false"'
 | `remote_ref` | Look up the SHA of a named ref on a remote via git ls-remote (read-only) |
 | `upstream_state` | Tracking-branch state: configured upstream, tracking-ref availability, ahead/behind counts, pushed/synced flags |
 | `log`    | Commit history with structured entries (SHA, author, date, message) |
-| `commit` | Stage files and create a commit |
-| `amend`  | Amend the most recent commit — rewrite message and/or staged content, recording old and new SHA |
+| `commit` | Stage files and create a commit, optionally at a chosen author/committer date |
+| `amend`  | Amend the most recent commit — rewrite message, staged content, and/or dates, recording old and new SHA |
 | `push`   | Push commits to a remote (with optional force or force-with-lease) |
 | `pull`   | Pull changes from a remote |
 | `fetch`  | Fetch refs from a remote with optional tag and prune support |
@@ -363,8 +408,8 @@ swamp data query repo 'tags.clean == "false"'
 | `remoteRefResult` | Remote name, resolved ref, and SHA from git ls-remote |
 | `upstreamStateResult` | Branch, upstream, configuredUpstream, trackingRefAvailable, ahead/behind counts (nullable), pushed/synced flags (nullable) |
 | `logResult`    | Structured commit entries (SHA, author, date, message) |
-| `commitResult` | Commit SHA and message |
-| `amendResult`  | Old SHA, new SHA, and message of the amended commit |
+| `commitResult` | Commit SHA, message, author date, committer date |
+| `amendResult`  | Old SHA, new SHA, message, author date, committer date of the amended commit |
 | `pushResult`   | Remote, branch, forced flag, forceWithLease flag |
 | `pullResult`   | Remote, branch, already-up-to-date flag |
 | `fetchResult`  | Remote, tags, pruned flag |

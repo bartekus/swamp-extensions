@@ -1,4 +1,8 @@
-import { assertEquals, assertRejects } from "jsr:@std/assert@1.0.19";
+import {
+  assertEquals,
+  assertRejects,
+  assertThrows,
+} from "jsr:@std/assert@1.0.19";
 import { model } from "./git.ts";
 import { resetCommandExecutor, setCommandExecutor } from "./_lib/runner.ts";
 import type { DataHandle, ExecResult, GitContext } from "./_lib/types.ts";
@@ -60,6 +64,19 @@ function ok(stdout = ""): ExecResult {
 
 function fail(stderr = "error", exitCode = 1): ExecResult {
   return { stdout: "", stderr, exitCode };
+}
+
+/**
+ * stdout for the consolidated read-back that commit and amend perform:
+ * `git log -1 --format=%H%n%aI%n%cI%n%s`.
+ */
+function metaOut(
+  sha = "abc1234def",
+  authorDate = "2026-01-01T00:00:00+00:00",
+  committerDate = "2026-01-01T00:00:00+00:00",
+  subject = "test commit",
+): ExecResult {
+  return ok(`${sha}\n${authorDate}\n${committerDate}\n${subject}\n`);
 }
 
 // ---------------------------------------------------------------------------
@@ -694,7 +711,7 @@ Deno.test("commit with addAll stages then commits", async () => {
   setCommandExecutor((argv) => {
     calls.push(argv);
     callIdx++;
-    if (callIdx === 3) return ok("abc1234def\n");
+    if (callIdx === 3) return metaOut();
     return ok("");
   });
   try {
@@ -710,10 +727,12 @@ Deno.test("commit with addAll stages then commits", async () => {
     assertEquals(calls[1].includes("commit"), true);
     assertEquals(calls[1].includes("-m"), true);
     assertEquals(calls[1].includes("test commit"), true);
-    assertEquals(calls[2].includes("rev-parse"), true);
+    assertEquals(calls[2].includes("log"), true);
 
     assertEquals(writes[0].specName, "commitResult");
     assertEquals(writes[0].data.message, "test commit");
+    assertEquals(writes[0].data.authorDate, "2026-01-01T00:00:00+00:00");
+    assertEquals(writes[0].data.committerDate, "2026-01-01T00:00:00+00:00");
   } finally {
     resetCommandExecutor();
   }
@@ -725,7 +744,7 @@ Deno.test("commit with specific paths", async () => {
   setCommandExecutor((argv) => {
     calls.push(argv);
     callIdx++;
-    if (callIdx === 3) return ok("abc1234def\n");
+    if (callIdx === 3) return metaOut();
     return ok("");
   });
   try {
@@ -751,7 +770,7 @@ Deno.test("commit uses -c flags for author config", async () => {
   setCommandExecutor((argv) => {
     calls.push(argv);
     callIdx++;
-    if (callIdx === 2) return ok("sha123\n");
+    if (callIdx === 2) return metaOut("sha123");
     return ok("");
   });
   try {
@@ -2321,8 +2340,12 @@ Deno.test("amend with new message", async () => {
     callIdx++;
     if (callIdx === 1) return ok("oldsha1234567890\n");
     if (callIdx === 2) return ok("");
-    if (callIdx === 3) return ok("newsha0987654321\n");
-    return ok("new commit message\n");
+    return metaOut(
+      "newsha0987654321",
+      undefined,
+      undefined,
+      "new commit message",
+    );
   });
   try {
     const { ctx, writes, logs } = makeHarness();
@@ -2331,18 +2354,22 @@ Deno.test("amend with new message", async () => {
       ctx,
     );
 
-    assertEquals(calls.length, 4);
+    // Three calls, not four: the SHA and the subject now come from a single
+    // consolidated read-back instead of a rev-parse plus a log --format=%s.
+    assertEquals(calls.length, 3);
     assertEquals(calls[0].includes("rev-parse"), true);
     assertEquals(calls[1].includes("--amend"), true);
     assertEquals(calls[1].includes("-m"), true);
     assertEquals(calls[1].includes("new commit message"), true);
-    assertEquals(calls[2].includes("rev-parse"), true);
+    assertEquals(calls[2].includes("log"), true);
 
     assertEquals(writes.length, 1);
     assertEquals(writes[0].specName, "amendResult");
     assertEquals(writes[0].data.oldSha, "oldsha1234567890");
     assertEquals(writes[0].data.newSha, "newsha0987654321");
     assertEquals(writes[0].data.message, "new commit message");
+    assertEquals(writes[0].data.authorDate, "2026-01-01T00:00:00+00:00");
+    assertEquals(writes[0].data.committerDate, "2026-01-01T00:00:00+00:00");
     assertEquals(
       logs.some((l) =>
         l.message.includes("oldsha12") && l.message.includes("newsha09")
@@ -2362,8 +2389,7 @@ Deno.test("amend with keepMessage uses --no-edit", async () => {
     callIdx++;
     if (callIdx === 1) return ok("oldsha\n");
     if (callIdx === 2) return ok("");
-    if (callIdx === 3) return ok("newsha\n");
-    return ok("kept message\n");
+    return metaOut("newsha", undefined, undefined, "kept message");
   });
   try {
     const { ctx } = makeHarness();
@@ -2387,8 +2413,7 @@ Deno.test("amend stages paths before amending", async () => {
     if (callIdx === 1) return ok("oldsha\n");
     if (callIdx === 2) return ok("");
     if (callIdx === 3) return ok("");
-    if (callIdx === 4) return ok("newsha\n");
-    return ok("msg\n");
+    return metaOut("newsha", undefined, undefined, "msg");
   });
   try {
     const { ctx } = makeHarness();
@@ -2417,8 +2442,7 @@ Deno.test("amend with addAll stages all before amending", async () => {
     if (callIdx === 1) return ok("oldsha\n");
     if (callIdx === 2) return ok("");
     if (callIdx === 3) return ok("");
-    if (callIdx === 4) return ok("newsha\n");
-    return ok("msg\n");
+    return metaOut("newsha", undefined, undefined, "msg");
   });
   try {
     const { ctx } = makeHarness();
@@ -2457,8 +2481,7 @@ Deno.test("amend uses -c flags for author config", async () => {
     callIdx++;
     if (callIdx === 1) return ok("oldsha\n");
     if (callIdx === 2) return ok("");
-    if (callIdx === 3) return ok("newsha\n");
-    return ok("msg\n");
+    return metaOut("newsha", undefined, undefined, "msg");
   });
   try {
     const { ctx } = makeHarness({
@@ -2492,6 +2515,354 @@ Deno.test("amend throws on commit --amend failure", async () => {
     );
   } finally {
     resetCommandExecutor();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// commit / amend date inputs
+//
+// The env var names are asserted as literal strings on purpose: git reads
+// exactly GIT_AUTHOR_DATE and GIT_COMMITTER_DATE, so a rename must fail here.
+// ---------------------------------------------------------------------------
+
+/** Records argv alongside the options each call received, including env. */
+function recordingExecutor(
+  results: (idx: number) => ExecResult,
+): { calls: { argv: string[]; env?: Record<string, string> }[] } {
+  const calls: { argv: string[]; env?: Record<string, string> }[] = [];
+  let idx = 0;
+  setCommandExecutor((argv, opts) => {
+    calls.push({ argv, env: opts?.env });
+    idx++;
+    return results(idx);
+  });
+  return { calls };
+}
+
+Deno.test("commit sets both date env vars", async () => {
+  const { calls } = recordingExecutor((idx) => idx === 2 ? metaOut() : ok(""));
+  try {
+    const { ctx } = makeHarness();
+    await model.methods.commit.execute(
+      {
+        message: "historical",
+        authorDate: "2001-02-03T04:05:06+00:00",
+        committerDate: "2011-12-13T14:15:16+00:00",
+      },
+      ctx,
+    );
+
+    const commit = calls[0];
+    assertEquals(commit.argv.includes("commit"), true);
+    assertEquals(commit.env?.GIT_AUTHOR_DATE, "2001-02-03T04:05:06+00:00");
+    assertEquals(commit.env?.GIT_COMMITTER_DATE, "2011-12-13T14:15:16+00:00");
+    // `--date` sets only the author date, so commit must not use it.
+    assertEquals(commit.argv.some((a) => a.startsWith("--date=")), false);
+  } finally {
+    resetCommandExecutor();
+  }
+});
+
+Deno.test("commit mirrors authorDate into committerDate", async () => {
+  const { calls } = recordingExecutor((idx) => idx === 2 ? metaOut() : ok(""));
+  try {
+    const { ctx } = makeHarness();
+    await model.methods.commit.execute(
+      { message: "mirrored", authorDate: "2001-02-03T04:05:06+00:00" },
+      ctx,
+    );
+
+    assertEquals(calls[0].env?.GIT_AUTHOR_DATE, "2001-02-03T04:05:06+00:00");
+    assertEquals(calls[0].env?.GIT_COMMITTER_DATE, "2001-02-03T04:05:06+00:00");
+  } finally {
+    resetCommandExecutor();
+  }
+});
+
+Deno.test("commit with committerDate alone leaves author date untouched", async () => {
+  const { calls } = recordingExecutor((idx) => idx === 2 ? metaOut() : ok(""));
+  try {
+    const { ctx } = makeHarness();
+    await model.methods.commit.execute(
+      { message: "committer only", committerDate: "2011-12-13T14:15:16+00:00" },
+      ctx,
+    );
+
+    assertEquals(calls[0].env?.GIT_AUTHOR_DATE, undefined);
+    assertEquals(calls[0].env?.GIT_COMMITTER_DATE, "2011-12-13T14:15:16+00:00");
+  } finally {
+    resetCommandExecutor();
+  }
+});
+
+Deno.test("commit without dates passes no env at all", async () => {
+  const { calls } = recordingExecutor((idx) => idx === 2 ? metaOut() : ok(""));
+  try {
+    const { ctx } = makeHarness();
+    await model.methods.commit.execute({ message: "plain" }, ctx);
+
+    // Regression guard: behavior must be identical to before date support.
+    for (const call of calls) {
+      assertEquals(call.env, undefined);
+    }
+  } finally {
+    resetCommandExecutor();
+  }
+});
+
+Deno.test("commit passes dates only to the commit, not to staging", async () => {
+  const { calls } = recordingExecutor((idx) => idx === 3 ? metaOut() : ok(""));
+  try {
+    const { ctx } = makeHarness();
+    await model.methods.commit.execute(
+      { message: "staged", addAll: true, authorDate: "2001-02-03T04:05:06Z" },
+      ctx,
+    );
+
+    assertEquals(calls[0].argv.includes("add"), true);
+    assertEquals(calls[0].env, undefined);
+    assertEquals(calls[1].env?.GIT_AUTHOR_DATE, "2001-02-03T04:05:06Z");
+  } finally {
+    resetCommandExecutor();
+  }
+});
+
+Deno.test("amend sends author date via --date, not env", async () => {
+  const { calls } = recordingExecutor((idx) =>
+    idx === 1 ? ok("oldsha\n") : idx === 3 ? metaOut("newsha") : ok("")
+  );
+  try {
+    const { ctx } = makeHarness();
+    await model.methods.amend.execute(
+      {
+        message: "rewritten",
+        authorDate: "2001-02-03T04:05:06+00:00",
+        committerDate: "2011-12-13T14:15:16+00:00",
+      },
+      ctx,
+    );
+
+    const amend = calls[1];
+    assertEquals(amend.argv.includes("--amend"), true);
+    // `git commit --amend` reuses the original author info and ignores
+    // GIT_AUTHOR_DATE outright, so the author date has to ride on --date.
+    assertEquals(
+      amend.argv.includes("--date=2001-02-03T04:05:06+00:00"),
+      true,
+    );
+    assertEquals(amend.env?.GIT_AUTHOR_DATE, undefined);
+    assertEquals(amend.env?.GIT_COMMITTER_DATE, "2011-12-13T14:15:16+00:00");
+    // --reset-author would clobber the original author name and email.
+    assertEquals(amend.argv.includes("--reset-author"), false);
+  } finally {
+    resetCommandExecutor();
+  }
+});
+
+Deno.test("amend mirrors authorDate into the committer env", async () => {
+  const { calls } = recordingExecutor((idx) =>
+    idx === 1 ? ok("oldsha\n") : idx === 3 ? metaOut("newsha") : ok("")
+  );
+  try {
+    const { ctx } = makeHarness();
+    await model.methods.amend.execute(
+      { message: "rewritten", authorDate: "2001-02-03T04:05:06+00:00" },
+      ctx,
+    );
+
+    assertEquals(
+      calls[1].argv.includes("--date=2001-02-03T04:05:06+00:00"),
+      true,
+    );
+    assertEquals(
+      calls[1].env?.GIT_COMMITTER_DATE,
+      "2001-02-03T04:05:06+00:00",
+    );
+  } finally {
+    resetCommandExecutor();
+  }
+});
+
+Deno.test("amend with committerDate alone emits no --date", async () => {
+  const { calls } = recordingExecutor((idx) =>
+    idx === 1 ? ok("oldsha\n") : idx === 3 ? metaOut("newsha") : ok("")
+  );
+  try {
+    const { ctx } = makeHarness();
+    await model.methods.amend.execute(
+      { message: "rewritten", committerDate: "2011-12-13T14:15:16+00:00" },
+      ctx,
+    );
+
+    assertEquals(calls[1].argv.some((a) => a.startsWith("--date=")), false);
+    assertEquals(
+      calls[1].env?.GIT_COMMITTER_DATE,
+      "2011-12-13T14:15:16+00:00",
+    );
+  } finally {
+    resetCommandExecutor();
+  }
+});
+
+Deno.test("date inputs reject empty and control-character values", () => {
+  for (const bad of ["", "   ", "2001-01-01\nGIT_COMMITTER_DATE=evil"]) {
+    assertThrows(
+      () =>
+        model.methods.commit.arguments.parse({ message: "m", authorDate: bad }),
+      Error,
+    );
+    assertThrows(
+      () =>
+        model.methods.amend.arguments.parse({
+          message: "m",
+          committerDate: bad,
+        }),
+      Error,
+    );
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Real-git integration
+//
+// Every other test in this file mocks the executor, which verifies the SHAPE of
+// the command but not whether git honors it. That gap is not hypothetical: an
+// env-only amend sets GIT_AUTHOR_DATE, exits 0, and leaves the author date at
+// wall clock — a mock asserting the env var is present would pass while the
+// commit object is wrong. This test runs the real binary so that class of bug
+// fails here instead of in a user's history.
+// ---------------------------------------------------------------------------
+
+/**
+ * Compare two date strings by instant rather than spelling — git normalizes
+ * `+00:00` to `Z` when it formats `%aI`/`%cI`, so the round trip is not
+ * character-identical even when the timestamp is exactly right.
+ */
+function assertSameInstant(actual: string, expected: string): void {
+  assertEquals(
+    Date.parse(actual),
+    Date.parse(expected),
+    `expected ${actual} to be the same instant as ${expected}`,
+  );
+}
+
+/** Run git directly, bypassing the extension, for arrange and assert steps. */
+async function rawGit(cwd: string, ...args: string[]): Promise<string> {
+  const output = await new Deno.Command("git", {
+    args,
+    cwd,
+    stdout: "piped",
+    stderr: "piped",
+  }).output();
+  if (output.code !== 0) {
+    throw new Error(
+      `test setup: git ${args.join(" ")} failed (exit ${output.code}): ${
+        new TextDecoder().decode(output.stderr)
+      }`,
+    );
+  }
+  return new TextDecoder().decode(output.stdout).trim();
+}
+
+Deno.test("real git honors the dates commit and amend send", async () => {
+  // Fixture dates pin explicit UTC offsets so assertions do not drift with the
+  // runner's local timezone.
+  const authorDate = "2001-02-03T04:05:06+00:00";
+  const committerDate = "2011-12-13T14:15:16+00:00";
+  const amendDate = "1995-06-07T08:09:10+00:00";
+
+  let repo: string;
+  try {
+    repo = await Deno.makeTempDir({ prefix: "swamp-git-dates-" });
+  } catch (error) {
+    throw new Error(
+      `test setup: could not create a temp dir: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+
+  try {
+    try {
+      // -b pins the branch so the test does not depend on the runner's
+      // init.defaultBranch, and surfaces a missing git binary as a clear error.
+      await rawGit(repo, "init", "-q", "-b", "main", ".");
+    } catch (error) {
+      throw new Error(
+        `real-git test needs a working git binary on PATH: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+    // Repo-local identity so results never depend on the developer's global
+    // git config.
+    await rawGit(repo, "config", "user.name", "Original Author");
+    await rawGit(repo, "config", "user.email", "original@example.com");
+    await Deno.writeTextFile(`${repo}/file.txt`, "one\n");
+
+    const { ctx, writes } = makeHarness({ repoPath: repo });
+
+    await model.methods.commit.execute(
+      { message: "dated commit", addAll: true, authorDate, committerDate },
+      ctx,
+    );
+
+    assertSameInstant(
+      await rawGit(repo, "log", "-1", "--format=%aI"),
+      authorDate,
+    );
+    assertSameInstant(
+      await rawGit(repo, "log", "-1", "--format=%cI"),
+      committerDate,
+    );
+    assertSameInstant(writes[0].data.authorDate as string, authorDate);
+    assertSameInstant(writes[0].data.committerDate as string, committerDate);
+
+    // Amend with a single date: it must reach BOTH timestamps on the rewritten
+    // object. Passing it through GIT_AUTHOR_DATE alone would silently leave the
+    // author date at the original value.
+    await Deno.writeTextFile(`${repo}/file.txt`, "two\n");
+    await model.methods.amend.execute(
+      { message: "dated amend", addAll: true, authorDate: amendDate },
+      ctx,
+    );
+
+    assertSameInstant(
+      await rawGit(repo, "log", "-1", "--format=%aI"),
+      amendDate,
+    );
+    assertSameInstant(
+      await rawGit(repo, "log", "-1", "--format=%cI"),
+      amendDate,
+    );
+    // The original author identity survives — this is why --reset-author is
+    // not used to set the amend author date.
+    assertEquals(
+      await rawGit(repo, "log", "-1", "--format=%an <%ae>"),
+      "Original Author <original@example.com>",
+    );
+    assertSameInstant(writes[1].data.authorDate as string, amendDate);
+    assertSameInstant(writes[1].data.committerDate as string, amendDate);
+    assertEquals(writes[1].data.message, "dated amend");
+  } finally {
+    await Deno.remove(repo, { recursive: true });
+  }
+});
+
+Deno.test("date inputs accept the formats git accepts", () => {
+  for (
+    const good of [
+      "2001-02-03T04:05:06+00:00",
+      "Sat, 3 Feb 2001 04:05:06 +0000",
+      "@981173106 +0000",
+      "2 hours ago",
+    ]
+  ) {
+    const parsed = model.methods.commit.arguments.parse({
+      message: "m",
+      authorDate: good,
+    });
+    assertEquals(parsed.authorDate, good);
   }
 });
 

@@ -34,6 +34,28 @@ const safeRefOptional = z.string().optional().refine(
   { message: "must not start with a dash (interpreted as a git flag)" },
 );
 
+/**
+ * A git-parseable date string.
+ *
+ * Deliberately thin: git is the authoritative validator and rejects anything it
+ * cannot parse with `fatal: invalid date format: <value>` and a non-zero exit.
+ * Re-implementing its parser here would only narrow what callers can express —
+ * git accepts ISO 8601, RFC 2822, `@<epoch> <tz>`, and relative forms like
+ * "2 hours ago". What we do reject is input that would corrupt the environment
+ * block a date is passed through: empty values and embedded control characters,
+ * where a newline could smuggle a second assignment.
+ */
+const gitDate = z.string().optional().refine(
+  (v) => v === undefined || v.trim().length > 0,
+  { message: "must not be empty" },
+).refine(
+  (v) => v === undefined || !/[\n\r\0]/.test(v),
+  {
+    message:
+      "must not contain control characters (newline, carriage return, or null)",
+  },
+);
+
 // ---------------------------------------------------------------------------
 // Method argument schemas
 // ---------------------------------------------------------------------------
@@ -97,6 +119,14 @@ export const CommitArgsSchema = z.object({
     .describe("Specific paths to stage before committing"),
   addAll: z.boolean().default(false)
     .describe("Run git add -A before committing"),
+  authorDate: gitDate
+    .describe(
+      "Author date (any git-parseable format). Also sets the committer date unless committerDate is given explicitly",
+    ),
+  committerDate: gitDate
+    .describe(
+      "Committer date (any git-parseable format). Defaults to authorDate when that is set",
+    ),
 });
 
 export type CommitArgs = z.infer<typeof CommitArgsSchema>;
@@ -110,6 +140,14 @@ export const AmendArgsSchema = z.object({
     .describe("Run git add -A before amending"),
   keepMessage: z.boolean().default(false)
     .describe("Keep the existing commit message (--no-edit)"),
+  authorDate: gitDate
+    .describe(
+      "Author date (any git-parseable format). Also sets the committer date unless committerDate is given explicitly. The original author name and email are preserved",
+    ),
+  committerDate: gitDate
+    .describe(
+      "Committer date (any git-parseable format). Defaults to authorDate when that is set",
+    ),
 }).refine(
   (v) => v.message !== undefined || v.keepMessage,
   {
@@ -278,12 +316,16 @@ export const LogResultSchema = z.object({
 export const CommitResultSchema = z.object({
   sha: z.string(),
   message: z.string(),
+  authorDate: z.string(),
+  committerDate: z.string(),
 });
 
 export const AmendResultSchema = z.object({
   oldSha: z.string(),
   newSha: z.string(),
   message: z.string(),
+  authorDate: z.string(),
+  committerDate: z.string(),
 });
 
 export const PushResultSchema = z.object({

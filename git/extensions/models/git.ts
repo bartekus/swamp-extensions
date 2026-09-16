@@ -67,7 +67,7 @@ import type { GitContext } from "./_lib/types.ts";
 /** Git model — clone, diff, worktree_diff, status, log, commit, amend, push, pull, fetch, cherry_pick, branch, config, remote_ref, upstream_state, is_ancestor, remove_worktree. */
 export const model = {
   type: "@swamp/git",
-  version: "2026.08.30.1",
+  version: "2026.09.15.1",
 
   globalArguments: GlobalArgsSchema,
 
@@ -140,6 +140,14 @@ export const model = {
       toVersion: "2026.08.30.1",
       description:
         "Add worktree_diff method for read-only working-tree diff including staged, unstaged, and untracked files. No globalArguments changes.",
+      upgradeAttributes: (
+        old: Record<string, unknown>,
+      ): Record<string, unknown> => old,
+    },
+    {
+      toVersion: "2026.09.15.1",
+      description:
+        "Add authorDate and committerDate inputs to commit and amend. Setting authorDate alone also sets the committer date, so a reconstructed commit does not keep a wall-clock committer timestamp. commitResult and amendResult now report the resulting authorDate and committerDate. Annotated tags carry a committer timestamp too and will need the same treatment if a tag method is added. No globalArguments changes.",
       upgradeAttributes: (
         old: Record<string, unknown>,
       ): Record<string, unknown> => old,

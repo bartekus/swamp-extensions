@@ -344,6 +344,69 @@ export async function runLog(
 }
 
 // ---------------------------------------------------------------------------
+// commit / amend shared helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve the author/committer date pair for a commit-creating method.
+ *
+ * Setting only the author date — what `git commit --date` does — leaves a real
+ * wall-clock committer timestamp on the object. Default `git log` hides it, so
+ * the discrepancy surfaces much later and is surprising when it does. Supplying
+ * `authorDate` alone therefore sets both. A caller who genuinely wants the two
+ * to differ sets `committerDate` explicitly.
+ */
+function resolveCommitDates(
+  args: { authorDate?: string; committerDate?: string },
+): { authorDate?: string; committerDate?: string } {
+  return {
+    authorDate: args.authorDate,
+    committerDate: args.committerDate ?? args.authorDate,
+  };
+}
+
+/** Format for {@link readCommitMetadata} — `%s` last, as a subject has no newline. */
+const COMMIT_META_FORMAT = "%H%n%aI%n%cI%n%s";
+
+/**
+ * Read back the SHA, dates, and subject of HEAD in a single git invocation.
+ *
+ * The SHA and dates are the result's identity, so a failure to read them throws.
+ * The subject is tolerated when absent — callers fall back to the message they
+ * asked for, preserving the behavior the separate `log -1 --format=%s` call had.
+ */
+async function readCommitMetadata(
+  opts: { cwd?: string; signal?: AbortSignal },
+): Promise<
+  { sha: string; authorDate: string; committerDate: string; subject?: string }
+> {
+  const result = await execGit(
+    ["log", "-1", `--format=${COMMIT_META_FORMAT}`],
+    opts,
+  );
+  if (result.exitCode !== 0) {
+    throw new Error(
+      `git log -1 failed (exit ${result.exitCode}): ${result.stderr}`,
+    );
+  }
+
+  const lines = result.stdout.split("\n");
+  const [sha, authorDate, committerDate] = lines;
+  if (!sha || !authorDate || !committerDate) {
+    throw new Error(
+      `git log -1 returned unexpected output: ${JSON.stringify(result.stdout)}`,
+    );
+  }
+
+  return {
+    sha: sha.trim(),
+    authorDate: authorDate.trim(),
+    committerDate: committerDate.trim(),
+    subject: lines.length > 3 && lines[3].length > 0 ? lines[3] : undefined,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // commit
 // ---------------------------------------------------------------------------
 
@@ -387,9 +450,20 @@ export async function runCommit(
       }
       commitArgv.push("commit", "-m", args.message);
 
+      // A fresh commit takes both dates through the environment. `--date` is
+      // deliberately not used here: it sets only the author date.
+      const dates = resolveCommitDates(args);
+      const commitEnv: Record<string, string> = {};
+      if (dates.authorDate) commitEnv.GIT_AUTHOR_DATE = dates.authorDate;
+      if (dates.committerDate) {
+        commitEnv.GIT_COMMITTER_DATE = dates.committerDate;
+      }
+
       const commitResult = await execGit(commitArgv, {
         cwd,
         signal: ctx.signal,
+        // Only the commit itself carries dates — staging has no timestamp.
+        env: Object.keys(commitEnv).length > 0 ? commitEnv : undefined,
       });
       if (commitResult.exitCode !== 0) {
         throw new Error(
@@ -397,16 +471,8 @@ export async function runCommit(
         );
       }
 
-      const shaResult = await execGit(["rev-parse", "HEAD"], {
-        cwd,
-        signal: ctx.signal,
-      });
-      if (shaResult.exitCode !== 0) {
-        throw new Error(
-          `git rev-parse HEAD failed (exit ${shaResult.exitCode}): ${shaResult.stderr}`,
-        );
-      }
-      const sha = shaResult.stdout.trim();
+      const meta = await readCommitMetadata({ cwd, signal: ctx.signal });
+      const sha = meta.sha;
 
       span.setAttribute(Attr.METHOD, "commit");
       span.setAttribute(Attr.COMMIT_SHA, sha);
@@ -420,6 +486,8 @@ export async function runCommit(
         {
           sha,
           message: args.message,
+          authorDate: meta.authorDate,
+          committerDate: meta.committerDate,
         },
         {
           tags: { method: "commit", sha },
@@ -500,9 +568,24 @@ export async function runAmend(
         commitArgv.push("-m", args.message!);
       }
 
+      // Amend needs a different mechanism from commit, and the difference is
+      // not cosmetic: `git commit --amend` reuses the original commit's author
+      // info and IGNORES GIT_AUTHOR_DATE — silently, with exit 0. The author
+      // date must go through `--date`, which also preserves the original author
+      // name and email (unlike `--reset-author`, which overwrites them with the
+      // committer identity). Do not "simplify" this to match runCommit's
+      // env-only path; doing so drops the author date without any error.
+      const dates = resolveCommitDates(args);
+      if (dates.authorDate) {
+        commitArgv.push(`--date=${dates.authorDate}`);
+      }
+
       const commitResult = await execGit(commitArgv, {
         cwd,
         signal: ctx.signal,
+        env: dates.committerDate
+          ? { GIT_COMMITTER_DATE: dates.committerDate }
+          : undefined,
       });
       if (commitResult.exitCode !== 0) {
         throw new Error(
@@ -510,24 +593,9 @@ export async function runAmend(
         );
       }
 
-      const newShaResult = await execGit(["rev-parse", "HEAD"], {
-        cwd,
-        signal: ctx.signal,
-      });
-      if (newShaResult.exitCode !== 0) {
-        throw new Error(
-          `git rev-parse HEAD failed (exit ${newShaResult.exitCode}): ${newShaResult.stderr}`,
-        );
-      }
-      const newSha = newShaResult.stdout.trim();
-
-      const messageResult = await execGit(
-        ["log", "-1", "--format=%s"],
-        { cwd, signal: ctx.signal },
-      );
-      const message = messageResult.exitCode === 0
-        ? messageResult.stdout.trim()
-        : (args.message ?? "");
+      const meta = await readCommitMetadata({ cwd, signal: ctx.signal });
+      const newSha = meta.sha;
+      const message = meta.subject ?? args.message ?? "";
 
       span.setAttribute(Attr.METHOD, "amend");
       span.setAttribute(Attr.COMMIT_SHA, newSha);
@@ -544,6 +612,8 @@ export async function runAmend(
           oldSha,
           newSha,
           message,
+          authorDate: meta.authorDate,
+          committerDate: meta.committerDate,
         },
         {
           tags: { method: "amend", oldSha, newSha },
