@@ -43,11 +43,11 @@ import {
 import type { AwsCredentials } from "./_lib/aws.ts";
 
 const TagSchema = z.object({
-  Key: z.string().min(1).max(128).describe(
-    "The key name of the tag. You can specify a value that is 1 to 128 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -.",
-  ),
   Value: z.string().min(0).max(256).describe(
     "The value for the tag. You can specify a value that is 0 to 256 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -.",
+  ),
+  Key: z.string().min(1).max(128).describe(
+    "The key name of the tag. You can specify a value that is 1 to 128 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -.",
   ),
 });
 
@@ -67,7 +67,6 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  Name: z.string().describe("The name of the permission."),
   ResourceType: z.string().describe(
     "The resource type this permission can be used with.",
   ),
@@ -75,17 +74,18 @@ const GlobalArgsSchema = z.object({
     "Policy template for the permission.",
   ),
   Tags: z.array(TagSchema).optional(),
+  Name: z.string().describe("The name of the permission."),
 });
 
 const StateSchema = z.object({
-  Arn: z.string(),
-  Name: z.string().optional(),
   Version: z.string().optional(),
-  IsResourceTypeDefault: z.boolean().optional(),
   PermissionType: z.string().optional(),
   ResourceType: z.string().optional(),
+  Arn: z.string(),
+  IsResourceTypeDefault: z.boolean().optional(),
   PolicyTemplate: z.record(z.string(), z.unknown()).optional(),
   Tags: z.array(TagSchema).optional(),
+  Name: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -96,7 +96,6 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  Name: z.string().describe("The name of the permission.").optional(),
   ResourceType: z.string().describe(
     "The resource type this permission can be used with.",
   ).optional(),
@@ -104,6 +103,7 @@ const InputsSchema = z.object({
     "Policy template for the permission.",
   ).optional(),
   Tags: z.array(TagSchema).optional(),
+  Name: z.string().describe("The name of the permission.").optional(),
 });
 
 const _credentialKeys = new Set([
@@ -125,7 +125,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RAM Permission. Registered at `@swamp/aws/ram/permission`. */
 export const model = {
   type: "@swamp/aws/ram/permission",
-  version: "2026.08.17.2",
+  version: "2026.09.16.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -179,6 +179,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

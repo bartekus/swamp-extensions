@@ -71,34 +71,34 @@ const GlobalArgsSchema = z.object({
 
 const ResourceSchema = z.object({
   store: z.object({
-    projectsMetadata: z.array(z.object({
-      id: z.string().optional(),
-      projectId: z.string().optional(),
-      name: z.string().optional(),
-      framework: z.string().optional(),
-      latestDeployment: z.string().optional(),
-      environments: z.array(z.string()).optional(),
-      envVarPrefix: z.string().optional(),
-      environmentVariables: z.array(z.string()).optional(),
-      deployments: z.object({
-        required: z.boolean().optional(),
-        actions: z.array(z.object({
-          slug: z.string().optional(),
-          environments: z.array(z.string()).optional(),
-        })).optional(),
-      }).optional(),
-      makeEnvVarsSensitive: z.boolean().optional(),
-    })).optional(),
     projectFilter: z.object({
       git: z.object({
-        providers: z.array(z.string()).optional(),
         owners: z.array(z.string()).optional(),
+        providers: z.array(z.string()).optional(),
         repos: z.array(z.string()).optional(),
       }).optional(),
     }).optional(),
+    projectsMetadata: z.array(z.object({
+      deployments: z.object({
+        actions: z.array(z.object({
+          environments: z.array(z.string()).optional(),
+          slug: z.string().optional(),
+        })).optional(),
+        required: z.boolean().optional(),
+      }).optional(),
+      environments: z.array(z.string()).optional(),
+      environmentVariables: z.array(z.string()).optional(),
+      envVarPrefix: z.string().optional(),
+      framework: z.string().optional(),
+      id: z.string().optional(),
+      latestDeployment: z.string().optional(),
+      makeEnvVarsSensitive: z.boolean().optional(),
+      name: z.string().optional(),
+      projectId: z.string().optional(),
+    })).optional(),
+    status: z.string().optional(),
     totalConnectedProjects: z.number().optional(),
     usageQuotaExceeded: z.boolean().optional(),
-    status: z.string().optional(),
   }).nullable().optional(),
   id: z.string(),
 }).passthrough();
@@ -149,7 +149,7 @@ function unwrapResponse(
 /** Swamp extension model for Vercel Blob. Registered at `@swamp/vercel/blob-storage/blob`. */
 export const model = {
   type: "@swamp/vercel/blob-storage/blob",
-  version: "2026.08.03.2",
+  version: "2026.09.16.1",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -173,6 +173,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.03.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

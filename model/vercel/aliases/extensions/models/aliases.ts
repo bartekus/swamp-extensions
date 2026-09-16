@@ -59,32 +59,32 @@ const ResourceSchema = z.object({
   created: z.string().nullable().optional(),
   createdAt: z.number().nullable().optional(),
   creator: z.object({
-    uid: z.string().optional(),
     email: z.string().optional(),
+    uid: z.string().optional(),
     username: z.string().optional(),
   }).nullable().optional(),
   deletedAt: z.number().nullable().optional(),
   deployment: z.object({
     id: z.string().optional(),
-    url: z.string().optional(),
     meta: z.string().optional(),
+    url: z.string().optional(),
   }).nullable().optional(),
   deploymentId: z.string().nullable().optional(),
-  projectId: z.string().nullable().optional(),
-  redirect: z.string().nullable().optional(),
-  redirectStatusCode: z.number().nullable().optional(),
-  uid: z.string(),
-  updatedAt: z.number().nullable().optional(),
-  protectionBypass: z.record(z.string(), z.unknown()).nullable().optional(),
   microfrontends: z.object({
-    defaultApp: z.object({
-      projectId: z.string().optional(),
-    }).optional(),
     applications: z.array(z.object({
       fallbackHost: z.string().optional(),
       projectId: z.string().optional(),
     })).optional(),
+    defaultApp: z.object({
+      projectId: z.string().optional(),
+    }).optional(),
   }).nullable().optional(),
+  projectId: z.string().nullable().optional(),
+  protectionBypass: z.record(z.string(), z.unknown()).nullable().optional(),
+  redirect: z.string().nullable().optional(),
+  redirectStatusCode: z.number().nullable().optional(),
+  uid: z.string(),
+  updatedAt: z.number().nullable().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -102,7 +102,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Aliases. Registered at `@swamp/vercel/aliases/aliases`. */
 export const model = {
   type: "@swamp/vercel/aliases/aliases",
-  version: "2026.08.03.4",
+  version: "2026.09.16.1",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -136,6 +136,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.03.4",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

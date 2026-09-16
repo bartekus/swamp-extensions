@@ -87,48 +87,48 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
-  id: z.string(),
-  ownerId: z.string().nullable().optional(),
-  name: z.string().nullable().optional(),
   algorithm: z.string().nullable().optional(),
-  origin: z.string().nullable().optional(),
-  managedBy: z.string().nullable().optional(),
   claimsSchema: z.record(z.string(), z.unknown()).nullable().optional(),
   createdAt: z.string().nullable().optional(),
-  updatedAt: z.string().nullable().optional(),
+  id: z.string(),
+  managedBy: z.string().nullable().optional(),
+  name: z.string().nullable().optional(),
+  origin: z.string().nullable().optional(),
+  ownerId: z.string().nullable().optional(),
+  policies: z.array(z.object({
+    createdAt: z.string().optional(),
+    environments: z.array(z.string()).optional(),
+    kind: z.string().optional(),
+    projectId: z.string().optional(),
+    teamId: z.string().optional(),
+    tokenClaims: z.record(z.string(), z.unknown()).optional(),
+    updatedAt: z.string().optional(),
+  })).nullable().optional(),
   signingKeys: z.array(z.object({
-    keyId: z.string().optional(),
+    activateAt: z.string().optional(),
+    activatedAt: z.string().optional(),
+    algorithm: z.string().optional(),
+    certificatePem: z.string().optional(),
+    createdAt: z.string().optional(),
     importKeyId: z.string().optional(),
     issuerId: z.string().optional(),
-    algorithm: z.string().optional(),
-    status: z.string().optional(),
+    keyId: z.string().optional(),
     publicKey: z.object({
-      kty: z.string().optional(),
-      kid: z.string().optional(),
       alg: z.string().optional(),
-      use: z.string().optional(),
       key_ops: z.array(z.string()).optional(),
+      kid: z.string().optional(),
+      kty: z.string().optional(),
+      use: z.string().optional(),
       x5c: z.array(z.string()).optional(),
       "x5t#S256": z.string().optional(),
     }).optional(),
     publicKeyFingerprint: z.string().optional(),
     publicKeyPem: z.string().optional(),
-    certificatePem: z.string().optional(),
-    createdAt: z.string().optional(),
-    updatedAt: z.string().optional(),
     revokeAt: z.string().optional(),
-    activateAt: z.string().optional(),
-    activatedAt: z.string().optional(),
-  })).nullable().optional(),
-  policies: z.array(z.object({
-    kind: z.string().optional(),
-    teamId: z.string().optional(),
-    projectId: z.string().optional(),
-    environments: z.array(z.string()).optional(),
-    tokenClaims: z.record(z.string(), z.unknown()).optional(),
-    createdAt: z.string().optional(),
+    status: z.string().optional(),
     updatedAt: z.string().optional(),
   })).nullable().optional(),
+  updatedAt: z.string().nullable().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -169,10 +169,15 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Issuers. Registered at `@swamp/vercel/kms/issuers`. */
 export const model = {
   type: "@swamp/vercel/kms/issuers",
-  version: "2026.09.08.1",
+  version: "2026.09.16.1",
   upgrades: [
     {
       toVersion: "2026.09.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -258,16 +263,16 @@ export const model = {
         if (g.importKeyId !== undefined) {
           filters.push(["importKeyId", String(g.importKeyId)]);
         }
-        if (g.id !== undefined) filters.push(["id", String(g.id)]);
-        if (g.ownerId !== undefined) {
-          filters.push(["ownerId", String(g.ownerId)]);
+        if (g.createdAt !== undefined) {
+          filters.push(["createdAt", String(g.createdAt)]);
         }
-        if (g.origin !== undefined) filters.push(["origin", String(g.origin)]);
+        if (g.id !== undefined) filters.push(["id", String(g.id)]);
         if (g.managedBy !== undefined) {
           filters.push(["managedBy", String(g.managedBy)]);
         }
-        if (g.createdAt !== undefined) {
-          filters.push(["createdAt", String(g.createdAt)]);
+        if (g.origin !== undefined) filters.push(["origin", String(g.origin)]);
+        if (g.ownerId !== undefined) {
+          filters.push(["ownerId", String(g.ownerId)]);
         }
         if (g.updatedAt !== undefined) {
           filters.push(["updatedAt", String(g.updatedAt)]);

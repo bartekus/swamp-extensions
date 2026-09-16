@@ -73,30 +73,30 @@ const GlobalArgsSchema = z.object({
 
 const ResourceSchema = z.object({
   domain: z.object({
-    suffix: z.boolean().optional(),
-    expiresAt: z.number().optional(),
-    verified: z.boolean().optional(),
-    nameservers: z.array(z.string()).optional(),
-    intendedNameservers: z.array(z.string()).optional(),
-    customNameservers: z.array(z.string()).optional(),
-    creator: z.object({
-      username: z.string().optional(),
-      email: z.string().optional(),
-      customerId: z.string().optional(),
-      isDomainReseller: z.boolean().optional(),
-      id: z.string().optional(),
-    }).optional(),
-    echMode: z.string().optional(),
-    name: z.string().optional(),
-    teamId: z.string().optional(),
     boughtAt: z.number().optional(),
     createdAt: z.number().optional(),
+    creator: z.object({
+      customerId: z.string().optional(),
+      email: z.string().optional(),
+      id: z.string().optional(),
+      isDomainReseller: z.boolean().optional(),
+      username: z.string().optional(),
+    }).optional(),
+    customNameservers: z.array(z.string()).optional(),
+    echMode: z.string().optional(),
+    expiresAt: z.number().optional(),
     id: z.string().optional(),
+    intendedNameservers: z.array(z.string()).optional(),
+    name: z.string().optional(),
+    nameservers: z.array(z.string()).optional(),
     renew: z.boolean().optional(),
     serviceType: z.string().optional(),
+    suffix: z.boolean().optional(),
+    teamId: z.string().optional(),
     transferredAt: z.number().optional(),
     transferStartedAt: z.number().optional(),
     userId: z.string().optional(),
+    verified: z.boolean().optional(),
   }).nullable().optional(),
   id: z.string(),
 }).passthrough();
@@ -130,7 +130,7 @@ function unwrapResponse(
 /** Swamp extension model for Vercel Domains. Registered at `@swamp/vercel/domains/domains`. */
 export const model = {
   type: "@swamp/vercel/domains/domains",
-  version: "2026.08.28.1",
+  version: "2026.09.16.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -169,6 +169,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

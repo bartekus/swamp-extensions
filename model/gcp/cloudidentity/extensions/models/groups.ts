@@ -180,6 +180,16 @@ const GlobalArgsSchema = z.object({
     }).describe("Output only. Status of the dynamic group.").optional(),
   }).describe("Optional. Dynamic group metadata like queries and status.")
     .optional(),
+  externalIds: z.array(z.object({
+    id: z.string().describe(
+      "Required. The unique identifier assigned by the external identity provider. The API does not enforce uniqueness of IDs across entities, but clients should ensure IDs are unique within their namespace.",
+    ).optional(),
+    namespace: z.string().describe(
+      'Required. The namespace in which the entity exists. Cannot be empty. Currently, the only allowable namespace is `"system/external"`.',
+    ).optional(),
+  })).describe(
+    'Optional. External identifiers associated with the `Group`. Enables external identity providers and directory sync tools to link their native unique identifiers with this group. Currently, the only allowable namespace is `"system/external"`.',
+  ).optional(),
   groupKey: z.object({
     id: z.string().describe(
       "The ID of the entity. For Google-managed entities, the `id` should be the email address of an existing group or user. Email addresses need to adhere to [name guidelines for users and groups](https://support.google.com/a/answer/9193374). For external-identity-mapped entities, the `id` must be a string conforming to the Identity Source's requirements. Must be unique within a `namespace`.",
@@ -217,6 +227,10 @@ const StateSchema = z.object({
       statusTime: z.string(),
     }),
   }).optional(),
+  externalIds: z.array(z.object({
+    id: z.string(),
+    namespace: z.string(),
+  })).optional(),
   groupKey: z.object({
     id: z.string(),
     namespace: z.string(),
@@ -266,6 +280,16 @@ const InputsSchema = z.object({
     }).describe("Output only. Status of the dynamic group.").optional(),
   }).describe("Optional. Dynamic group metadata like queries and status.")
     .optional(),
+  externalIds: z.array(z.object({
+    id: z.string().describe(
+      "Required. The unique identifier assigned by the external identity provider. The API does not enforce uniqueness of IDs across entities, but clients should ensure IDs are unique within their namespace.",
+    ).optional(),
+    namespace: z.string().describe(
+      'Required. The namespace in which the entity exists. Cannot be empty. Currently, the only allowable namespace is `"system/external"`.',
+    ).optional(),
+  })).describe(
+    'Optional. External identifiers associated with the `Group`. Enables external identity providers and directory sync tools to link their native unique identifiers with this group. Currently, the only allowable namespace is `"system/external"`.',
+  ).optional(),
   groupKey: z.object({
     id: z.string().describe(
       "The ID of the entity. For Google-managed entities, the `id` should be the email address of an existing group or user. Email addresses need to adhere to [name guidelines for users and groups](https://support.google.com/a/answer/9193374). For external-identity-mapped entities, the `id` must be a string conforming to the Identity Source's requirements. Must be unique within a `namespace`.",
@@ -311,7 +335,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Identity Groups. Registered at `@swamp/gcp/cloudidentity/groups`. */
 export const model = {
   type: "@swamp/gcp/cloudidentity/groups",
-  version: "2026.09.07.2",
+  version: "2026.09.16.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -471,6 +495,11 @@ export const model = {
         return rest;
       },
     },
+    {
+      toVersion: "2026.09.16.1",
+      description: "Added: externalIds",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -503,6 +532,9 @@ export const model = {
         }
         if (g["dynamicGroupMetadata"] !== undefined) {
           body["dynamicGroupMetadata"] = g["dynamicGroupMetadata"];
+        }
+        if (g["externalIds"] !== undefined) {
+          body["externalIds"] = g["externalIds"];
         }
         if (g["groupKey"] !== undefined) body["groupKey"] = g["groupKey"];
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
@@ -623,6 +655,9 @@ export const model = {
         }
         if (g["dynamicGroupMetadata"] !== undefined) {
           body["dynamicGroupMetadata"] = g["dynamicGroupMetadata"];
+        }
+        if (g["externalIds"] !== undefined) {
+          body["externalIds"] = g["externalIds"];
         }
         if (g["groupKey"] !== undefined) body["groupKey"] = g["groupKey"];
         const updateMaskKeys = Object.keys(body);

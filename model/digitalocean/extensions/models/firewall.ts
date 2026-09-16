@@ -54,6 +54,7 @@ const GlobalArgsSchema = z.object({
   inbound_rules: z.array(z.object({
     protocol: z.enum(["tcp", "udp", "icmp"]),
     ports: z.string(),
+    action: z.enum(["allow", "deny"]).optional(),
     sources: z.object({
       addresses: z.array(z.string()).optional(),
       droplet_ids: z.array(z.number().int()).optional(),
@@ -65,6 +66,7 @@ const GlobalArgsSchema = z.object({
   outbound_rules: z.array(z.object({
     protocol: z.enum(["tcp", "udp", "icmp"]),
     ports: z.string(),
+    action: z.enum(["allow", "deny"]).optional(),
     destinations: z.object({
       addresses: z.array(z.string()).optional(),
       droplet_ids: z.array(z.number().int()).optional(),
@@ -93,6 +95,7 @@ const ResourceSchema = z.object({
   inbound_rules: z.array(z.object({
     protocol: z.string().optional(),
     ports: z.string().optional(),
+    action: z.string().optional(),
     sources: z.object({
       addresses: z.array(z.string()).optional(),
       droplet_ids: z.array(z.number()).optional(),
@@ -104,6 +107,7 @@ const ResourceSchema = z.object({
   outbound_rules: z.array(z.object({
     protocol: z.string().optional(),
     ports: z.string().optional(),
+    action: z.string().optional(),
     destinations: z.object({
       addresses: z.array(z.string()).optional(),
       droplet_ids: z.array(z.number()).optional(),
@@ -124,6 +128,7 @@ const InputsSchema = z.object({
   inbound_rules: z.array(z.object({
     protocol: z.enum(["tcp", "udp", "icmp"]),
     ports: z.string(),
+    action: z.enum(["allow", "deny"]).optional(),
     sources: z.object({
       addresses: z.array(z.string()).optional(),
       droplet_ids: z.array(z.number().int()).optional(),
@@ -135,6 +140,7 @@ const InputsSchema = z.object({
   outbound_rules: z.array(z.object({
     protocol: z.enum(["tcp", "udp", "icmp"]),
     ports: z.string(),
+    action: z.enum(["allow", "deny"]).optional(),
     destinations: z.object({
       addresses: z.array(z.string()).optional(),
       droplet_ids: z.array(z.number().int()).optional(),
@@ -149,7 +155,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean firewall. Registered at `@swamp/digitalocean/firewall`. */
 export const model = {
   type: "@swamp/digitalocean/firewall",
-  version: "2026.06.08.1",
+  version: "2026.09.16.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -198,6 +204,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

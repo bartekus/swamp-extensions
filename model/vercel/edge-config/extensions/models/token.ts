@@ -47,11 +47,11 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
-  partialToken: z.string().nullable().optional(),
-  label: z.string().nullable().optional(),
-  id: z.string(),
-  edgeConfigId: z.string().nullable().optional(),
   createdAt: z.number().nullable().optional(),
+  edgeConfigId: z.string().nullable().optional(),
+  id: z.string(),
+  label: z.string().nullable().optional(),
+  partialToken: z.string().nullable().optional(),
   token: z.string().nullable().optional(),
 }).passthrough();
 
@@ -68,7 +68,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Token. Registered at `@swamp/vercel/edge-config/token`. */
 export const model = {
   type: "@swamp/vercel/edge-config/token",
-  version: "2026.08.03.4",
+  version: "2026.09.16.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -102,6 +102,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.03.4",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

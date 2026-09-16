@@ -258,67 +258,17 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
-  connect: z.object({
-    enabled: z.boolean().optional(),
-  }).nullable().optional(),
-  creatorId: z.string().nullable().optional(),
-  updatedAt: z.number().nullable().optional(),
-  emailDomain: z.string().nullable().optional(),
-  saml: z.object({
-    connection: z.object({
-      type: z.string().optional(),
-      state: z.string().optional(),
-      connectedAt: z.number().optional(),
-      lastReceivedWebhookEvent: z.number().optional(),
-      lastSyncedAt: z.number().optional(),
-      syncState: z.string().optional(),
-      status: z.string().optional(),
-    }).optional(),
-    directory: z.object({
-      type: z.string().optional(),
-      state: z.string().optional(),
-      connectedAt: z.number().optional(),
-      lastReceivedWebhookEvent: z.number().optional(),
-      lastSyncedAt: z.number().optional(),
-      syncState: z.string().optional(),
-    }).optional(),
-    enforced: z.boolean().optional(),
-    defaultRedirectUri: z.string().optional(),
-    roles: z.record(z.string(), z.unknown()).optional(),
-  }).nullable().optional(),
-  inviteCode: z.string().nullable().optional(),
+  apiKeysInvalidatedAt: z.number().nullable().optional(),
+  appTokensInvalidatedAt: z.number().nullable().optional(),
+  avatar: z.string().nullable().optional(),
   billing: z.object({
     plan: z.string().optional(),
   }).nullable().optional(),
-  description: z.string().nullable().optional(),
-  defaultRoles: z.object({
-    teamRoles: z.array(z.string()).optional(),
-    teamPermissions: z.array(z.string()).optional(),
-  }).nullable().optional(),
-  stagingPrefix: z.string().nullable().optional(),
-  resourceConfig: z.object({
-    concurrentBuilds: z.number().optional(),
-    elasticConcurrencyEnabled: z.boolean().optional(),
-    edgeConfigSize: z.number().optional(),
-    edgeConfigs: z.number().optional(),
-    kvDatabases: z.number().optional(),
-    blobStores: z.number().optional(),
-    postgresDatabases: z.number().optional(),
-    customEnvironmentsPerProject: z.number().optional(),
-    serverlessFunctionMaxMemorySize: z.number().optional(),
-    buildEntitlements: z.object({
-      enhancedBuilds: z.boolean().optional(),
-    }).optional(),
-    buildMachine: z.object({
-      default: z.string().optional(),
-    }).optional(),
-  }).nullable().optional(),
-  previewDeploymentSuffix: z.string().nullable().optional(),
-  platform: z.boolean().nullable().optional(),
-  disableHardAutoBlocks: z.number().nullable().optional(),
-  remoteCaching: z.object({
+  connect: z.object({
     enabled: z.boolean().optional(),
   }).nullable().optional(),
+  createdAt: z.number().nullable().optional(),
+  creatorId: z.string().nullable().optional(),
   defaultDeploymentProtection: z.object({
     passwordProtection: z.object({
       deploymentType: z.string().optional(),
@@ -327,47 +277,159 @@ const ResourceSchema = z.object({
       deploymentType: z.string().optional(),
     }).optional(),
   }).nullable().optional(),
+  defaultExpirationSettings: z.object({
+    deploymentsToKeep: z.number().optional(),
+    expirationDays: z.number().optional(),
+    expirationDaysCanceled: z.number().optional(),
+    expirationDaysErrored: z.number().optional(),
+    expirationDaysProduction: z.number().optional(),
+  }).nullable().optional(),
   defaultPassport: z.object({
     connectorId: z.string().optional(),
     deploymentType: z.string().optional(),
-  }).nullable().optional(),
-  defaultExpirationSettings: z.object({
-    expirationDays: z.number().optional(),
-    expirationDaysProduction: z.number().optional(),
-    expirationDaysCanceled: z.number().optional(),
-    expirationDaysErrored: z.number().optional(),
-    deploymentsToKeep: z.number().optional(),
   }).nullable().optional(),
   defaultProjectJobs: z.object({
     lint: z.object({
       targets: z.array(z.string()).optional(),
     }).optional(),
-    typecheck: z.object({
-      targets: z.array(z.string()).optional(),
-    }).optional(),
     "mfe-config-present": z.object({
       targets: z.array(z.string()).optional(),
     }).optional(),
+    typecheck: z.object({
+      targets: z.array(z.string()).optional(),
+    }).optional(),
   }).nullable().optional(),
+  defaultRoles: z.object({
+    teamPermissions: z.array(z.string()).optional(),
+    teamRoles: z.array(z.string()).optional(),
+  }).nullable().optional(),
+  deploymentPolicy: z.object({
+    deploymentSources: z.array(z.object({
+      enabled: z.boolean().optional(),
+      environments: z.array(z.object({
+        target: z.string().optional(),
+        type: z.string().optional(),
+      })).optional(),
+      sources: z.array(z.string()).optional(),
+    })).optional(),
+    gitSources: z.array(z.object({
+      enabled: z.boolean().optional(),
+      environments: z.array(z.object({
+        target: z.string().optional(),
+        type: z.string().optional(),
+      })).optional(),
+      sources: z.array(z.object({
+        org: z.string().optional(),
+        provider: z.string().optional(),
+        repo: z.string().optional(),
+      })).optional(),
+    })).optional(),
+  }).nullable().optional(),
+  description: z.string().nullable().optional(),
+  disableHardAutoBlocks: z.number().nullable().optional(),
+  disableRepositoryDispatchEvents: z.boolean().nullable().optional(),
+  disjunctiveProductionSecretPolicy: z.string().nullable().optional(),
+  dpAccessRequestsMode: z.string().nullable().optional(),
+  emailDomain: z.string().nullable().optional(),
   enablePreviewFeedback: z.string().nullable().optional(),
   enableProductionFeedback: z.string().nullable().optional(),
-  sensitiveEnvironmentVariablePolicy: z.string().nullable().optional(),
-  disjunctiveProductionSecretPolicy: z.string().nullable().optional(),
   hideIpAddresses: z.boolean().nullable().optional(),
   hideIpAddressesInLogDrains: z.boolean().nullable().optional(),
-  dpAccessRequestsMode: z.string().nullable().optional(),
+  id: z.string(),
+  integrationTokensInvalidatedAt: z.number().nullable().optional(),
+  inviteCode: z.string().nullable().optional(),
   ipBuckets: z.array(z.object({
     bucket: z.string().optional(),
-    supportUntil: z.number().optional(),
     default: z.boolean().optional(),
+    supportUntil: z.number().optional(),
   })).nullable().optional(),
+  membership: z.object({
+    accessRequestedAt: z.number().optional(),
+    confirmed: z.boolean().optional(),
+    created: z.number().optional(),
+    createdAt: z.number().optional(),
+    entitlements: z.array(z.object({
+      entitlement: z.string().optional(),
+    })).optional(),
+    joinedFrom: z.object({
+      commitId: z.string().optional(),
+      dsyncConnectedAt: z.number().optional(),
+      dsyncUserId: z.string().optional(),
+      gitUserId: z.string().optional(),
+      gitUserLogin: z.string().optional(),
+      idpUserId: z.string().optional(),
+      origin: z.string().optional(),
+      repoId: z.string().optional(),
+      repoPath: z.string().optional(),
+      ssoConnectedAt: z.number().optional(),
+      ssoUserId: z.string().optional(),
+    }).optional(),
+    role: z.string().optional(),
+    teamId: z.string().optional(),
+    teamPermissions: z.array(z.string()).optional(),
+    teamRoles: z.array(z.string()).optional(),
+    uid: z.string().optional(),
+  }).nullable().optional(),
+  name: z.string().nullable().optional(),
+  nsnbConfig: z.object({
+    preference: z.string().optional(),
+  }).nullable().optional(),
+  orgRootTeamId: z.string().nullable().optional(),
+  parentId: z.string().nullable().optional(),
+  personalAccessTokensInvalidatedAt: z.number().nullable().optional(),
+  platform: z.boolean().nullable().optional(),
+  previewDeploymentSuffix: z.string().nullable().optional(),
+  remoteCaching: z.object({
+    enabled: z.boolean().optional(),
+  }).nullable().optional(),
   requireVerifiedCommits: z.boolean().nullable().optional(),
-  disableRepositoryDispatchEvents: z.boolean().nullable().optional(),
-  strictDeploymentProtectionSettings: z.object({
+  resourceConfig: z.object({
+    blobStores: z.number().optional(),
+    buildEntitlements: z.object({
+      enhancedBuilds: z.boolean().optional(),
+    }).optional(),
+    buildMachine: z.object({
+      default: z.string().optional(),
+    }).optional(),
+    concurrentBuilds: z.number().optional(),
+    customEnvironmentsPerProject: z.number().optional(),
+    edgeConfigs: z.number().optional(),
+    edgeConfigSize: z.number().optional(),
+    elasticConcurrencyEnabled: z.boolean().optional(),
+    kvDatabases: z.number().optional(),
+    postgresDatabases: z.number().optional(),
+    serverlessFunctionMaxMemorySize: z.number().optional(),
+  }).nullable().optional(),
+  saml: z.object({
+    connection: z.object({
+      connectedAt: z.number().optional(),
+      lastReceivedWebhookEvent: z.number().optional(),
+      lastSyncedAt: z.number().optional(),
+      state: z.string().optional(),
+      syncState: z.string().optional(),
+      type: z.string().optional(),
+      status: z.string().optional(),
+    }).optional(),
+    defaultRedirectUri: z.string().optional(),
+    directory: z.object({
+      connectedAt: z.number().optional(),
+      lastReceivedWebhookEvent: z.number().optional(),
+      lastSyncedAt: z.number().optional(),
+      state: z.string().optional(),
+      syncState: z.string().optional(),
+      type: z.string().optional(),
+    }).optional(),
+    enforced: z.boolean().optional(),
+    roles: z.record(z.string(), z.unknown()).optional(),
+  }).nullable().optional(),
+  sensitiveEnvironmentVariablePolicy: z.string().nullable().optional(),
+  slug: z.string().nullable().optional(),
+  stagingPrefix: z.string().nullable().optional(),
+  strictConnectors: z.object({
     enabled: z.boolean().optional(),
     updatedAt: z.number().optional(),
   }).nullable().optional(),
-  strictShareableLinks: z.object({
+  strictDeploymentProtectionSettings: z.object({
     enabled: z.boolean().optional(),
     updatedAt: z.number().optional(),
   }).nullable().optional(),
@@ -375,73 +437,11 @@ const ResourceSchema = z.object({
     enabled: z.boolean().optional(),
     updatedAt: z.number().optional(),
   }).nullable().optional(),
-  strictConnectors: z.object({
+  strictShareableLinks: z.object({
     enabled: z.boolean().optional(),
     updatedAt: z.number().optional(),
   }).nullable().optional(),
-  nsnbConfig: z.object({
-    preference: z.string().optional(),
-  }).nullable().optional(),
-  deploymentPolicy: z.object({
-    gitSources: z.array(z.object({
-      sources: z.array(z.object({
-        provider: z.string().optional(),
-        org: z.string().optional(),
-        repo: z.string().optional(),
-      })).optional(),
-      enabled: z.boolean().optional(),
-      environments: z.array(z.object({
-        type: z.string().optional(),
-        target: z.string().optional(),
-      })).optional(),
-    })).optional(),
-    deploymentSources: z.array(z.object({
-      sources: z.array(z.string()).optional(),
-      enabled: z.boolean().optional(),
-      environments: z.array(z.object({
-        type: z.string().optional(),
-        target: z.string().optional(),
-      })).optional(),
-    })).optional(),
-  }).nullable().optional(),
-  personalAccessTokensInvalidatedAt: z.number().nullable().optional(),
-  appTokensInvalidatedAt: z.number().nullable().optional(),
-  apiKeysInvalidatedAt: z.number().nullable().optional(),
-  integrationTokensInvalidatedAt: z.number().nullable().optional(),
-  id: z.string(),
-  slug: z.string().nullable().optional(),
-  name: z.string().nullable().optional(),
-  avatar: z.string().nullable().optional(),
-  membership: z.object({
-    uid: z.string().optional(),
-    entitlements: z.array(z.object({
-      entitlement: z.string().optional(),
-    })).optional(),
-    teamId: z.string().optional(),
-    confirmed: z.boolean().optional(),
-    accessRequestedAt: z.number().optional(),
-    role: z.string().optional(),
-    teamRoles: z.array(z.string()).optional(),
-    teamPermissions: z.array(z.string()).optional(),
-    createdAt: z.number().optional(),
-    created: z.number().optional(),
-    joinedFrom: z.object({
-      origin: z.string().optional(),
-      commitId: z.string().optional(),
-      repoId: z.string().optional(),
-      repoPath: z.string().optional(),
-      gitUserId: z.string().optional(),
-      gitUserLogin: z.string().optional(),
-      ssoUserId: z.string().optional(),
-      ssoConnectedAt: z.number().optional(),
-      idpUserId: z.string().optional(),
-      dsyncUserId: z.string().optional(),
-      dsyncConnectedAt: z.number().optional(),
-    }).optional(),
-  }).nullable().optional(),
-  createdAt: z.number().nullable().optional(),
-  parentId: z.string().nullable().optional(),
-  orgRootTeamId: z.string().nullable().optional(),
+  updatedAt: z.number().nullable().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -619,7 +619,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Teams. Registered at `@swamp/vercel/teams/teams`. */
 export const model = {
   type: "@swamp/vercel/teams/teams",
-  version: "2026.09.03.1",
+  version: "2026.09.16.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -674,6 +674,11 @@ export const model = {
     {
       toVersion: "2026.09.03.1",
       description: "Added: strictConnectors",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.16.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -815,31 +820,10 @@ export const model = {
             String(g.disableRepositoryDispatchEvents),
           ]);
         }
-        if (g.creatorId !== undefined) {
-          filters.push(["creatorId", String(g.creatorId)]);
-        }
-        if (g.updatedAt !== undefined) {
-          filters.push(["updatedAt", String(g.updatedAt)]);
-        }
-        if (g.inviteCode !== undefined) {
-          filters.push(["inviteCode", String(g.inviteCode)]);
-        }
-        if (g.stagingPrefix !== undefined) {
-          filters.push(["stagingPrefix", String(g.stagingPrefix)]);
-        }
-        if (g.platform !== undefined) {
-          filters.push(["platform", String(g.platform)]);
-        }
-        if (g.disableHardAutoBlocks !== undefined) {
+        if (g.apiKeysInvalidatedAt !== undefined) {
           filters.push([
-            "disableHardAutoBlocks",
-            String(g.disableHardAutoBlocks),
-          ]);
-        }
-        if (g.personalAccessTokensInvalidatedAt !== undefined) {
-          filters.push([
-            "personalAccessTokensInvalidatedAt",
-            String(g.personalAccessTokensInvalidatedAt),
+            "apiKeysInvalidatedAt",
+            String(g.apiKeysInvalidatedAt),
           ]);
         }
         if (g.appTokensInvalidatedAt !== undefined) {
@@ -848,27 +832,48 @@ export const model = {
             String(g.appTokensInvalidatedAt),
           ]);
         }
-        if (g.apiKeysInvalidatedAt !== undefined) {
+        if (g.createdAt !== undefined) {
+          filters.push(["createdAt", String(g.createdAt)]);
+        }
+        if (g.creatorId !== undefined) {
+          filters.push(["creatorId", String(g.creatorId)]);
+        }
+        if (g.disableHardAutoBlocks !== undefined) {
           filters.push([
-            "apiKeysInvalidatedAt",
-            String(g.apiKeysInvalidatedAt),
+            "disableHardAutoBlocks",
+            String(g.disableHardAutoBlocks),
           ]);
         }
+        if (g.id !== undefined) filters.push(["id", String(g.id)]);
         if (g.integrationTokensInvalidatedAt !== undefined) {
           filters.push([
             "integrationTokensInvalidatedAt",
             String(g.integrationTokensInvalidatedAt),
           ]);
         }
-        if (g.id !== undefined) filters.push(["id", String(g.id)]);
-        if (g.createdAt !== undefined) {
-          filters.push(["createdAt", String(g.createdAt)]);
+        if (g.inviteCode !== undefined) {
+          filters.push(["inviteCode", String(g.inviteCode)]);
+        }
+        if (g.orgRootTeamId !== undefined) {
+          filters.push(["orgRootTeamId", String(g.orgRootTeamId)]);
         }
         if (g.parentId !== undefined) {
           filters.push(["parentId", String(g.parentId)]);
         }
-        if (g.orgRootTeamId !== undefined) {
-          filters.push(["orgRootTeamId", String(g.orgRootTeamId)]);
+        if (g.personalAccessTokensInvalidatedAt !== undefined) {
+          filters.push([
+            "personalAccessTokensInvalidatedAt",
+            String(g.personalAccessTokensInvalidatedAt),
+          ]);
+        }
+        if (g.platform !== undefined) {
+          filters.push(["platform", String(g.platform)]);
+        }
+        if (g.stagingPrefix !== undefined) {
+          filters.push(["stagingPrefix", String(g.stagingPrefix)]);
+        }
+        if (g.updatedAt !== undefined) {
+          filters.push(["updatedAt", String(g.updatedAt)]);
         }
         if (filters.length === 0) {
           throw new Error(

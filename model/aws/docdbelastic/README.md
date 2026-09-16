@@ -14,8 +14,8 @@ methods:
 - **delete** — remove the resource from AWS
 - **sync** — refresh all resource properties from AWS
 
-Use `swamp model type describe @swamp/aws/docdbelastic/cluster` to see the full
-list of configurable properties and available methods for this model.
+Use `swamp model type describe @swamp/aws/docdbelastic/cluster_snapshot` to see
+the full list of configurable properties and available methods for this model.
 
 ## Authentication
 
@@ -47,17 +47,17 @@ export AWS_SECRET_ACCESS_KEY=wJal...
 ## Usage
 
 ```bash
-# Create a new cluster model
-swamp model create @swamp/aws/docdbelastic/cluster my-cluster
+# Create a new cluster_snapshot model
+swamp model create @swamp/aws/docdbelastic/cluster_snapshot my-cluster_snapshot
 
 # Edit the model to configure its properties
-swamp model edit my-cluster
+swamp model edit my-cluster_snapshot
 
 # Create the resource in AWS
-swamp model method run my-cluster create
+swamp model method run my-cluster_snapshot create
 
 # Sync current state from AWS
-swamp model method run my-cluster sync
+swamp model method run my-cluster_snapshot sync
 ```
 
 ## License

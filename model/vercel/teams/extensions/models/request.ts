@@ -64,32 +64,32 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
-  teamSlug: z.string().nullable().optional(),
-  teamName: z.string().nullable().optional(),
-  confirmed: z.boolean().nullable().optional(),
-  joinedFrom: z.object({
-    origin: z.string().optional(),
-    commitId: z.string().optional(),
-    repoId: z.string().optional(),
-    repoPath: z.string().optional(),
-    gitUserId: z.string().optional(),
-    gitUserLogin: z.string().optional(),
-    ssoUserId: z.string().optional(),
-    ssoConnectedAt: z.number().optional(),
-    idpUserId: z.string().optional(),
-    dsyncUserId: z.string().optional(),
-    dsyncConnectedAt: z.number().optional(),
-  }).nullable().optional(),
   accessRequestedAt: z.number().nullable().optional(),
+  bitbucket: z.object({
+    login: z.string().optional(),
+  }).nullable().optional(),
+  confirmed: z.boolean().nullable().optional(),
   github: z.object({
     login: z.string().optional(),
   }).nullable().optional(),
   gitlab: z.object({
     login: z.string().optional(),
   }).nullable().optional(),
-  bitbucket: z.object({
-    login: z.string().optional(),
+  joinedFrom: z.object({
+    commitId: z.string().optional(),
+    dsyncConnectedAt: z.number().optional(),
+    dsyncUserId: z.string().optional(),
+    gitUserId: z.string().optional(),
+    gitUserLogin: z.string().optional(),
+    idpUserId: z.string().optional(),
+    origin: z.string().optional(),
+    repoId: z.string().optional(),
+    repoPath: z.string().optional(),
+    ssoConnectedAt: z.number().optional(),
+    ssoUserId: z.string().optional(),
   }).nullable().optional(),
+  teamName: z.string().nullable().optional(),
+  teamSlug: z.string().nullable().optional(),
   id: z.string(),
 }).passthrough();
 
@@ -121,7 +121,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Request. Registered at `@swamp/vercel/teams/request`. */
 export const model = {
   type: "@swamp/vercel/teams/request",
-  version: "2026.08.03.4",
+  version: "2026.09.16.1",
   upgrades: [
     {
       toVersion: "2026.08.01.2",
@@ -160,6 +160,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.03.4",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

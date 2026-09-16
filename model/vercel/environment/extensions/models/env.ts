@@ -62,25 +62,25 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
-  created: z.string().nullable().optional(),
-  key: z.string().nullable().optional(),
-  ownerId: z.string().nullable().optional(),
-  id: z.string(),
-  createdBy: z.string().nullable().optional(),
-  deletedBy: z.string().nullable().optional(),
-  updatedBy: z.string().nullable().optional(),
-  createdAt: z.number().nullable().optional(),
-  deletedAt: z.number().nullable().optional(),
-  updatedAt: z.number().nullable().optional(),
-  value: z.string().nullable().optional(),
-  projectId: z.array(z.string()).nullable().optional(),
-  type: z.string().nullable().optional(),
-  target: z.array(z.string()).nullable().optional(),
   applyToAllCustomEnvironments: z.boolean().nullable().optional(),
+  comment: z.string().nullable().optional(),
+  created: z.string().nullable().optional(),
+  createdAt: z.number().nullable().optional(),
+  createdBy: z.string().nullable().optional(),
   customEnvironmentIds: z.array(z.string()).nullable().optional(),
   decrypted: z.boolean().nullable().optional(),
-  comment: z.string().nullable().optional(),
+  deletedAt: z.number().nullable().optional(),
+  deletedBy: z.string().nullable().optional(),
+  id: z.string(),
+  key: z.string().nullable().optional(),
   lastEditedByDisplayName: z.string().nullable().optional(),
+  ownerId: z.string().nullable().optional(),
+  projectId: z.array(z.string()).nullable().optional(),
+  target: z.array(z.string()).nullable().optional(),
+  type: z.string().nullable().optional(),
+  updatedAt: z.number().nullable().optional(),
+  updatedBy: z.string().nullable().optional(),
+  value: z.string().nullable().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -103,7 +103,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Env. Registered at `@swamp/vercel/environment/env`. */
 export const model = {
   type: "@swamp/vercel/environment/env",
-  version: "2026.08.03.3",
+  version: "2026.09.16.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -137,6 +137,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.03.3",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -218,51 +223,51 @@ export const model = {
         const endpoint = "/v1/env";
         const filters: [string, string][] = [];
         if (g.type !== undefined) filters.push(["type", String(g.type)]);
-        if (g.created !== undefined) {
-          filters.push(["created", String(g.created)]);
-        }
-        if (g.key !== undefined) filters.push(["key", String(g.key)]);
-        if (g.ownerId !== undefined) {
-          filters.push(["ownerId", String(g.ownerId)]);
-        }
-        if (g.id !== undefined) filters.push(["id", String(g.id)]);
-        if (g.createdBy !== undefined) {
-          filters.push(["createdBy", String(g.createdBy)]);
-        }
-        if (g.deletedBy !== undefined) {
-          filters.push(["deletedBy", String(g.deletedBy)]);
-        }
-        if (g.updatedBy !== undefined) {
-          filters.push(["updatedBy", String(g.updatedBy)]);
-        }
-        if (g.createdAt !== undefined) {
-          filters.push(["createdAt", String(g.createdAt)]);
-        }
-        if (g.deletedAt !== undefined) {
-          filters.push(["deletedAt", String(g.deletedAt)]);
-        }
-        if (g.updatedAt !== undefined) {
-          filters.push(["updatedAt", String(g.updatedAt)]);
-        }
-        if (g.value !== undefined) filters.push(["value", String(g.value)]);
         if (g.applyToAllCustomEnvironments !== undefined) {
           filters.push([
             "applyToAllCustomEnvironments",
             String(g.applyToAllCustomEnvironments),
           ]);
         }
-        if (g.decrypted !== undefined) {
-          filters.push(["decrypted", String(g.decrypted)]);
-        }
         if (g.comment !== undefined) {
           filters.push(["comment", String(g.comment)]);
         }
+        if (g.created !== undefined) {
+          filters.push(["created", String(g.created)]);
+        }
+        if (g.createdAt !== undefined) {
+          filters.push(["createdAt", String(g.createdAt)]);
+        }
+        if (g.createdBy !== undefined) {
+          filters.push(["createdBy", String(g.createdBy)]);
+        }
+        if (g.decrypted !== undefined) {
+          filters.push(["decrypted", String(g.decrypted)]);
+        }
+        if (g.deletedAt !== undefined) {
+          filters.push(["deletedAt", String(g.deletedAt)]);
+        }
+        if (g.deletedBy !== undefined) {
+          filters.push(["deletedBy", String(g.deletedBy)]);
+        }
+        if (g.id !== undefined) filters.push(["id", String(g.id)]);
+        if (g.key !== undefined) filters.push(["key", String(g.key)]);
         if (g.lastEditedByDisplayName !== undefined) {
           filters.push([
             "lastEditedByDisplayName",
             String(g.lastEditedByDisplayName),
           ]);
         }
+        if (g.ownerId !== undefined) {
+          filters.push(["ownerId", String(g.ownerId)]);
+        }
+        if (g.updatedAt !== undefined) {
+          filters.push(["updatedAt", String(g.updatedAt)]);
+        }
+        if (g.updatedBy !== undefined) {
+          filters.push(["updatedBy", String(g.updatedBy)]);
+        }
+        if (g.value !== undefined) filters.push(["value", String(g.value)]);
         if (filters.length === 0) {
           throw new Error(
             "At least one global argument must be set to filter by",

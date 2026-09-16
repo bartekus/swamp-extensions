@@ -55,17 +55,17 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
-  teamPermissions: z.array(z.string()).nullable().optional(),
+  accessGroupId: z.string().nullable().optional(),
+  createdAt: z.string().nullable().optional(),
   entitlements: z.array(z.string()).nullable().optional(),
   isDsyncManaged: z.boolean().nullable().optional(),
-  name: z.string().nullable().optional(),
-  createdAt: z.string().nullable().optional(),
-  teamId: z.string().nullable().optional(),
-  updatedAt: z.string().nullable().optional(),
-  accessGroupId: z.string().nullable().optional(),
   membersCount: z.number().nullable().optional(),
+  name: z.string().nullable().optional(),
   projectsCount: z.number().nullable().optional(),
+  teamId: z.string().nullable().optional(),
+  teamPermissions: z.array(z.string()).nullable().optional(),
   teamRoles: z.array(z.string()).nullable().optional(),
+  updatedAt: z.string().nullable().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -85,7 +85,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Access Groups. Registered at `@swamp/vercel/access-groups/access-groups`. */
 export const model = {
   type: "@swamp/vercel/access-groups/access-groups",
-  version: "2026.08.03.3",
+  version: "2026.09.16.1",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -124,6 +124,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.03.3",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -199,23 +204,23 @@ export const model = {
         const endpoint = "/v1/access-groups";
         const filters: [string, string][] = [];
         if (g.name !== undefined) filters.push(["name", String(g.name)]);
-        if (g.isDsyncManaged !== undefined) {
-          filters.push(["isDsyncManaged", String(g.isDsyncManaged)]);
+        if (g.accessGroupId !== undefined) {
+          filters.push(["accessGroupId", String(g.accessGroupId)]);
         }
         if (g.createdAt !== undefined) {
           filters.push(["createdAt", String(g.createdAt)]);
         }
-        if (g.updatedAt !== undefined) {
-          filters.push(["updatedAt", String(g.updatedAt)]);
-        }
-        if (g.accessGroupId !== undefined) {
-          filters.push(["accessGroupId", String(g.accessGroupId)]);
+        if (g.isDsyncManaged !== undefined) {
+          filters.push(["isDsyncManaged", String(g.isDsyncManaged)]);
         }
         if (g.membersCount !== undefined) {
           filters.push(["membersCount", String(g.membersCount)]);
         }
         if (g.projectsCount !== undefined) {
           filters.push(["projectsCount", String(g.projectsCount)]);
+        }
+        if (g.updatedAt !== undefined) {
+          filters.push(["updatedAt", String(g.updatedAt)]);
         }
         if (filters.length === 0) {
           throw new Error(

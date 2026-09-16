@@ -53,11 +53,11 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
-  teamId: z.string().nullable().optional(),
   accessGroupId: z.string().nullable().optional(),
+  createdAt: z.string().nullable().optional(),
   projectId: z.string().nullable().optional(),
   role: z.string().nullable().optional(),
-  createdAt: z.string().nullable().optional(),
+  teamId: z.string().nullable().optional(),
   updatedAt: z.string().nullable().optional(),
   id: z.string(),
 }).passthrough();
@@ -77,7 +77,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Projects. Registered at `@swamp/vercel/access-groups/projects`. */
 export const model = {
   type: "@swamp/vercel/access-groups/projects",
-  version: "2026.08.03.4",
+  version: "2026.09.16.1",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -116,6 +116,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.03.4",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

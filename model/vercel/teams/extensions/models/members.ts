@@ -99,12 +99,12 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
-  uid: z.string(),
-  username: z.string().nullable().optional(),
   email: z.string().nullable().optional(),
   role: z.string().nullable().optional(),
-  teamRoles: z.array(z.string()).nullable().optional(),
   teamPermissions: z.array(z.string()).nullable().optional(),
+  teamRoles: z.array(z.string()).nullable().optional(),
+  uid: z.string(),
+  username: z.string().nullable().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -166,7 +166,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Members. Registered at `@swamp/vercel/teams/members`. */
 export const model = {
   type: "@swamp/vercel/teams/members",
-  version: "2026.08.31.1",
+  version: "2026.09.16.1",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -215,6 +215,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.31.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

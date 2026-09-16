@@ -67,19 +67,19 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
+  awsDnsEntries: z.array(z.string()).nullable().optional(),
+  awsServiceName: z.string().nullable().optional(),
+  createdAt: z.number().nullable().optional(),
   endpointId: z.string().nullable().optional(),
   name: z.string().nullable().optional(),
-  teamId: z.string().nullable().optional(),
-  projectId: z.string().nullable().optional(),
-  vercelRegion: z.string().nullable().optional(),
-  awsServiceName: z.string().nullable().optional(),
-  vpcEndpointId: z.string().nullable().optional(),
-  awsDnsEntries: z.array(z.string()).nullable().optional(),
   privateDnsNames: z.array(z.string()).nullable().optional(),
+  projectId: z.string().nullable().optional(),
   status: z.string().nullable().optional(),
   statusMessage: z.string().nullable().optional(),
-  createdAt: z.number().nullable().optional(),
+  teamId: z.string().nullable().optional(),
   updatedAt: z.number().nullable().optional(),
+  vercelRegion: z.string().nullable().optional(),
+  vpcEndpointId: z.string().nullable().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -98,7 +98,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Endpoints. Registered at `@swamp/vercel/networking/endpoints`. */
 export const model = {
   type: "@swamp/vercel/networking/endpoints",
-  version: "2026.09.03.1",
+  version: "2026.09.16.1",
+  upgrades: [
+    {
+      toVersion: "2026.09.16.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -188,21 +195,21 @@ export const model = {
         if (g.awsServiceName !== undefined) {
           filters.push(["awsServiceName", String(g.awsServiceName)]);
         }
+        if (g.createdAt !== undefined) {
+          filters.push(["createdAt", String(g.createdAt)]);
+        }
         if (g.endpointId !== undefined) {
           filters.push(["endpointId", String(g.endpointId)]);
-        }
-        if (g.vpcEndpointId !== undefined) {
-          filters.push(["vpcEndpointId", String(g.vpcEndpointId)]);
         }
         if (g.status !== undefined) filters.push(["status", String(g.status)]);
         if (g.statusMessage !== undefined) {
           filters.push(["statusMessage", String(g.statusMessage)]);
         }
-        if (g.createdAt !== undefined) {
-          filters.push(["createdAt", String(g.createdAt)]);
-        }
         if (g.updatedAt !== undefined) {
           filters.push(["updatedAt", String(g.updatedAt)]);
+        }
+        if (g.vpcEndpointId !== undefined) {
+          filters.push(["vpcEndpointId", String(g.vpcEndpointId)]);
         }
         if (filters.length === 0) {
           throw new Error(

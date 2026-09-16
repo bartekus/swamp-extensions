@@ -119,38 +119,38 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
-  description: z.string().nullable().optional(),
+  createdAt: z.number().nullable().optional(),
   createdBy: z.string().nullable().optional(),
-  usedByFlags: z.array(z.string()).nullable().optional(),
-  usedBySegments: z.array(z.string()).nullable().optional(),
   data: z.object({
+    exclude: z.record(z.string(), z.unknown()).optional(),
+    include: z.record(z.string(), z.unknown()).optional(),
     rules: z.array(z.object({
-      id: z.string().optional(),
-      outcome: z.object({
-        type: z.string().optional(),
-      }).optional(),
       conditions: z.array(z.object({
-        rhs: z.string().optional(),
+        cmp: z.string().optional(),
         cmpOptions: z.object({
           ignoreCase: z.boolean().optional(),
         }).optional(),
         lhs: z.object({
           type: z.string().optional(),
         }).optional(),
-        cmp: z.string().optional(),
+        rhs: z.string().optional(),
       })).optional(),
+      id: z.string().optional(),
+      outcome: z.object({
+        type: z.string().optional(),
+      }).optional(),
     })).optional(),
-    include: z.record(z.string(), z.unknown()).optional(),
-    exclude: z.record(z.string(), z.unknown()).optional(),
   }).nullable().optional(),
+  description: z.string().nullable().optional(),
+  hint: z.string().nullable().optional(),
   id: z.string(),
   label: z.string().nullable().optional(),
-  slug: z.string().nullable().optional(),
-  createdAt: z.number().nullable().optional(),
-  updatedAt: z.number().nullable().optional(),
   projectId: z.string().nullable().optional(),
+  slug: z.string().nullable().optional(),
   typeName: z.string().nullable().optional(),
-  hint: z.string().nullable().optional(),
+  updatedAt: z.number().nullable().optional(),
+  usedByFlags: z.array(z.string()).nullable().optional(),
+  usedBySegments: z.array(z.string()).nullable().optional(),
   metadata: z.object({
     creator: z.object({
       id: z.string().optional(),
@@ -236,7 +236,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Segments. Registered at `@swamp/vercel/feature-flags/segments`. */
 export const model = {
   type: "@swamp/vercel/feature-flags/segments",
-  version: "2026.08.03.4",
+  version: "2026.09.16.1",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -270,6 +270,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.03.4",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -357,18 +362,18 @@ export const model = {
         if (g.createdBy !== undefined) {
           filters.push(["createdBy", String(g.createdBy)]);
         }
-        if (g.id !== undefined) filters.push(["id", String(g.id)]);
         if (g.createdAt !== undefined) {
           filters.push(["createdAt", String(g.createdAt)]);
         }
-        if (g.updatedAt !== undefined) {
-          filters.push(["updatedAt", String(g.updatedAt)]);
-        }
+        if (g.id !== undefined) filters.push(["id", String(g.id)]);
         if (g.projectId !== undefined) {
           filters.push(["projectId", String(g.projectId)]);
         }
         if (g.typeName !== undefined) {
           filters.push(["typeName", String(g.typeName)]);
+        }
+        if (g.updatedAt !== undefined) {
+          filters.push(["updatedAt", String(g.updatedAt)]);
         }
         if (filters.length === 0) {
           throw new Error(

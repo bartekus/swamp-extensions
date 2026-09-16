@@ -168,18 +168,7 @@ const StateSchema = z.object({
   }).optional(),
   ActiveConfigurations: z.array(z.object({
     ServiceRevisionArn: z.string(),
-    ExecutionRoleArn: z.string(),
     TaskRoleArn: z.string(),
-    ScalingTarget: z.object({
-      MinTaskCount: z.number(),
-      MaxTaskCount: z.number(),
-      AutoScalingMetric: z.string(),
-      AutoScalingTargetValue: z.number(),
-    }),
-    IngressPaths: z.array(z.object({
-      Endpoint: z.string(),
-      AccessType: z.string(),
-    })),
     PrimaryContainer: z.object({
       RepositoryCredentials: ExpressGatewayRepositoryCredentialsSchema,
       Secrets: z.array(SecretSchema),
@@ -193,6 +182,17 @@ const StateSchema = z.object({
     HealthCheckPath: z.string(),
     CreatedAt: z.string(),
     Cpu: z.string(),
+    ExecutionRoleArn: z.string(),
+    ScalingTarget: z.object({
+      MinTaskCount: z.number(),
+      MaxTaskCount: z.number(),
+      AutoScalingMetric: z.string(),
+      AutoScalingTargetValue: z.number(),
+    }),
+    IngressPaths: z.array(z.object({
+      Endpoint: z.string(),
+      AccessType: z.string(),
+    })),
     NetworkConfiguration: z.object({
       SecurityGroups: z.array(z.string()),
       Subnets: z.array(z.string()),
@@ -275,7 +275,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ECS ExpressGatewayService. Registered at `@swamp/aws/ecs/express-gateway-service`. */
 export const model = {
   type: "@swamp/aws/ecs/express-gateway-service",
-  version: "2026.08.17.1",
+  version: "2026.09.16.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -324,6 +324,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

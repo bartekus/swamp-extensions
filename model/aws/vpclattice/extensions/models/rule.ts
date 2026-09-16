@@ -136,7 +136,7 @@ const GlobalArgsSchema = z.object({
   Name: z.string().min(3).max(63).regex(
     new RegExp("^(?!rule-)(?![-])(?!.*[-]$)(?!.*[-]{2})[a-z0-9-]+$"),
   ).optional(),
-  Priority: z.number().int().min(1).max(100),
+  Priority: z.number().int().min(1).max(2000),
   ServiceIdentifier: z.string().min(20).max(2048).regex(
     new RegExp(
       "^((svc-[0-9a-z]{17})|(arn(:[a-z0-9]+([.-][a-z0-9]+)*){2}(:([a-z0-9]+([.-][a-z0-9]+)*)?){2}:service/svc-[0-9a-z]{17}))$",
@@ -180,7 +180,7 @@ const InputsSchema = z.object({
   Name: z.string().min(3).max(63).regex(
     new RegExp("^(?!rule-)(?![-])(?!.*[-]$)(?!.*[-]{2})[a-z0-9-]+$"),
   ).optional(),
-  Priority: z.number().int().min(1).max(100).optional(),
+  Priority: z.number().int().min(1).max(2000).optional(),
   ServiceIdentifier: z.string().min(20).max(2048).regex(
     new RegExp(
       "^((svc-[0-9a-z]{17})|(arn(:[a-z0-9]+([.-][a-z0-9]+)*){2}(:([a-z0-9]+([.-][a-z0-9]+)*)?){2}:service/svc-[0-9a-z]{17}))$",
@@ -208,7 +208,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for VpcLattice Rule. Registered at `@swamp/aws/vpclattice/rule`. */
 export const model = {
   type: "@swamp/aws/vpclattice/rule",
-  version: "2026.08.31.1",
+  version: "2026.09.16.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -262,6 +262,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.31.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -259,6 +259,10 @@ const StateSchema = z.object({
     clientOperationId: z.string(),
     creationTimestamp: z.string(),
     description: z.string(),
+    details: z.object({
+      data: z.record(z.string(), z.unknown()),
+      message: z.string(),
+    }),
     endTime: z.string(),
     error: z.object({
       errors: z.array(z.object({
@@ -276,6 +280,15 @@ const StateSchema = z.object({
     firewallPolicyRuleOperationMetadata: z.object({
       allocatedPriority: z.number(),
     }),
+    getHealthOperationMetadata: z.object({
+      healthInfo: z.object({
+        availabilitySloStatus: z.string(),
+        healthStatus: z.string(),
+        repairCategory: z.string(),
+        unhealthyReason: z.string(),
+        updateTime: z.string(),
+      }),
+    }),
     getVersionOperationMetadata: z.object({
       inlineSbomInfo: z.object({
         currentComponentVersions: z.record(z.string(), z.unknown()),
@@ -289,6 +302,9 @@ const StateSchema = z.object({
     instancesBulkInsertOperationMetadata: z.object({
       machineType: z.string(),
       perLocationStatus: z.record(z.string(), z.unknown()),
+    }),
+    instancesTroubleshootOperationMetadata: z.object({
+      troubleshootOutput: z.string(),
     }),
     kind: z.string(),
     name: z.string(),
@@ -421,7 +437,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Deployment Manager Deployments. Registered at `@swamp/gcp/deploymentmanager/deployments`. */
 export const model = {
   type: "@swamp/gcp/deploymentmanager/deployments",
-  version: "2026.09.07.2",
+  version: "2026.09.16.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -580,6 +596,11 @@ export const model = {
         } = old;
         return rest;
       },
+    },
+    {
+      toVersion: "2026.09.16.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   globalArguments: GlobalArgsSchema,

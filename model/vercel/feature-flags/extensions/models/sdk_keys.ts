@@ -50,16 +50,16 @@ const GlobalArgsSchema = z.object({
 
 const ResourceSchema = z.object({
   data: z.array(z.object({
+    createdAt: z.number().optional(),
+    createdBy: z.string().optional(),
+    deletedAt: z.number().optional(),
+    environment: z.string().optional(),
     hashKey: z.string().optional(),
+    label: z.string().optional(),
+    partialKeyValue: z.string().optional(),
     projectId: z.string().optional(),
     type: z.string().optional(),
-    environment: z.string().optional(),
-    createdBy: z.string().optional(),
-    createdAt: z.number().optional(),
     updatedAt: z.number().optional(),
-    label: z.string().optional(),
-    deletedAt: z.number().optional(),
-    partialKeyValue: z.string().optional(),
   })).nullable().optional(),
   id: z.string(),
 }).passthrough();
@@ -79,7 +79,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Sdk Keys. Registered at `@swamp/vercel/feature-flags/sdk-keys`. */
 export const model = {
   type: "@swamp/vercel/feature-flags/sdk-keys",
-  version: "2026.08.03.2",
+  version: "2026.09.16.1",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -103,6 +103,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.03.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

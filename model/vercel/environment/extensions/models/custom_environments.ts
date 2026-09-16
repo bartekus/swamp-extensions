@@ -66,34 +66,34 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
-  id: z.string(),
-  slug: z.string().nullable().optional(),
-  type: z.string().nullable().optional(),
-  description: z.string().nullable().optional(),
   branchMatcher: z.object({
-    type: z.string().optional(),
     pattern: z.string().optional(),
+    type: z.string().optional(),
   }).nullable().optional(),
+  createdAt: z.number().nullable().optional(),
+  currentDeploymentAliases: z.array(z.string()).nullable().optional(),
+  description: z.string().nullable().optional(),
   domains: z.array(z.object({
-    name: z.string().optional(),
     apexName: z.string().optional(),
+    createdAt: z.number().optional(),
+    customEnvironmentId: z.string().optional(),
+    gitBranch: z.string().optional(),
+    name: z.string().optional(),
     projectId: z.string().optional(),
     redirect: z.string().optional(),
     redirectStatusCode: z.number().optional(),
-    gitBranch: z.string().optional(),
-    customEnvironmentId: z.string().optional(),
     updatedAt: z.number().optional(),
-    createdAt: z.number().optional(),
-    verified: z.boolean().optional(),
     verification: z.array(z.object({
-      type: z.string().optional(),
       domain: z.string().optional(),
-      value: z.string().optional(),
       reason: z.string().optional(),
+      type: z.string().optional(),
+      value: z.string().optional(),
     })).optional(),
+    verified: z.boolean().optional(),
   })).nullable().optional(),
-  currentDeploymentAliases: z.array(z.string()).nullable().optional(),
-  createdAt: z.number().nullable().optional(),
+  id: z.string(),
+  slug: z.string().nullable().optional(),
+  type: z.string().nullable().optional(),
   updatedAt: z.number().nullable().optional(),
 }).passthrough();
 
@@ -115,7 +115,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Custom Environments. Registered at `@swamp/vercel/environment/custom-environments`. */
 export const model = {
   type: "@swamp/vercel/environment/custom-environments",
-  version: "2026.08.03.4",
+  version: "2026.09.16.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -149,6 +149,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.03.4",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -234,11 +239,11 @@ export const model = {
         if (g.copyEnvVarsFrom !== undefined) {
           filters.push(["copyEnvVarsFrom", String(g.copyEnvVarsFrom)]);
         }
-        if (g.id !== undefined) filters.push(["id", String(g.id)]);
-        if (g.type !== undefined) filters.push(["type", String(g.type)]);
         if (g.createdAt !== undefined) {
           filters.push(["createdAt", String(g.createdAt)]);
         }
+        if (g.id !== undefined) filters.push(["id", String(g.id)]);
+        if (g.type !== undefined) filters.push(["type", String(g.type)]);
         if (g.updatedAt !== undefined) {
           filters.push(["updatedAt", String(g.updatedAt)]);
         }

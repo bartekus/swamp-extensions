@@ -56,27 +56,27 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
-  id: z.string(),
   createdAt: z.number().nullable().optional(),
   createdBy: z.string().nullable().optional(),
-  ownerId: z.string().nullable().optional(),
-  slug: z.string().nullable().optional(),
-  updatedAt: z.number().nullable().optional(),
-  digest: z.string().nullable().optional(),
-  purpose: z.object({
-    type: z.string().optional(),
-    projectId: z.string().optional(),
-  }).nullable().optional(),
   deletedAt: z.number().nullable().optional(),
-  transfer: z.object({
-    fromAccountId: z.string().optional(),
-    startedAt: z.number().optional(),
-    doneAt: z.number().optional(),
+  digest: z.string().nullable().optional(),
+  id: z.string(),
+  ownerId: z.string().nullable().optional(),
+  purpose: z.object({
+    projectId: z.string().optional(),
+    type: z.string().optional(),
   }).nullable().optional(),
   schema: z.record(z.string(), z.unknown()).nullable().optional(),
+  slug: z.string().nullable().optional(),
   syncedToDynamoAt: z.number().nullable().optional(),
-  sizeInBytes: z.number().nullable().optional(),
+  transfer: z.object({
+    doneAt: z.number().optional(),
+    fromAccountId: z.string().optional(),
+    startedAt: z.number().optional(),
+  }).nullable().optional(),
+  updatedAt: z.number().nullable().optional(),
   itemCount: z.number().nullable().optional(),
+  sizeInBytes: z.number().nullable().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -92,7 +92,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Global Config. Registered at `@swamp/vercel/edge-config/global-config`. */
 export const model = {
   type: "@swamp/vercel/edge-config/global-config",
-  version: "2026.08.03.3",
+  version: "2026.09.16.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -121,6 +121,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.03.3",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -193,31 +198,31 @@ export const model = {
         const g = context.globalArgs;
         const endpoint = "/v1/global-config";
         const filters: [string, string][] = [];
-        if (g.id !== undefined) filters.push(["id", String(g.id)]);
         if (g.createdAt !== undefined) {
           filters.push(["createdAt", String(g.createdAt)]);
         }
         if (g.createdBy !== undefined) {
           filters.push(["createdBy", String(g.createdBy)]);
         }
-        if (g.ownerId !== undefined) {
-          filters.push(["ownerId", String(g.ownerId)]);
-        }
-        if (g.updatedAt !== undefined) {
-          filters.push(["updatedAt", String(g.updatedAt)]);
-        }
-        if (g.digest !== undefined) filters.push(["digest", String(g.digest)]);
         if (g.deletedAt !== undefined) {
           filters.push(["deletedAt", String(g.deletedAt)]);
+        }
+        if (g.digest !== undefined) filters.push(["digest", String(g.digest)]);
+        if (g.id !== undefined) filters.push(["id", String(g.id)]);
+        if (g.ownerId !== undefined) {
+          filters.push(["ownerId", String(g.ownerId)]);
         }
         if (g.syncedToDynamoAt !== undefined) {
           filters.push(["syncedToDynamoAt", String(g.syncedToDynamoAt)]);
         }
-        if (g.sizeInBytes !== undefined) {
-          filters.push(["sizeInBytes", String(g.sizeInBytes)]);
+        if (g.updatedAt !== undefined) {
+          filters.push(["updatedAt", String(g.updatedAt)]);
         }
         if (g.itemCount !== undefined) {
           filters.push(["itemCount", String(g.itemCount)]);
+        }
+        if (g.sizeInBytes !== undefined) {
+          filters.push(["sizeInBytes", String(g.sizeInBytes)]);
         }
         if (filters.length === 0) {
           throw new Error(

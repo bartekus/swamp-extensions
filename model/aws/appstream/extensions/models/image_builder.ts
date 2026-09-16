@@ -88,6 +88,7 @@ const GlobalArgsSchema = z.object({
   RootVolumeConfig: z.object({
     VolumeSizeInGb: z.number().int().optional(),
   }).optional(),
+  DisableIMDSV1: z.boolean().optional(),
 });
 
 const StateSchema = z.object({
@@ -116,6 +117,7 @@ const StateSchema = z.object({
   RootVolumeConfig: z.object({
     VolumeSizeInGb: z.number(),
   }).optional(),
+  DisableIMDSV1: z.boolean().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -149,6 +151,7 @@ const InputsSchema = z.object({
   RootVolumeConfig: z.object({
     VolumeSizeInGb: z.number().int().optional(),
   }).optional(),
+  DisableIMDSV1: z.boolean().optional(),
 });
 
 const _credentialKeys = new Set([
@@ -170,7 +173,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppStream ImageBuilder. Registered at `@swamp/aws/appstream/image-builder`. */
 export const model = {
   type: "@swamp/aws/appstream/image-builder",
-  version: "2026.08.17.2",
+  version: "2026.09.16.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -220,6 +223,11 @@ export const model = {
     {
       toVersion: "2026.08.17.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.16.1",
+      description: "Added: DisableIMDSV1",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -597,14 +597,6 @@ export const model = {
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
-      toVersion: "2026.09.08.1",
-      description: "Removed: kafkaVersion",
-      upgradeAttributes: (old: Record<string, unknown>) => {
-        const { kafkaVersion: _kafkaVersion, ...rest } = old;
-        return rest;
-      },
-    },
-    {
       toVersion: "2026.09.15.1",
       description: "Added: kafkaVersion",
       upgradeAttributes: (old: Record<string, unknown>) => old,

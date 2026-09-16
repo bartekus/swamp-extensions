@@ -81,30 +81,30 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
+  createdAt: z.number().nullable().optional(),
+  createdBy: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
-  variants: z.array(z.object({
-    description: z.string().optional(),
-    label: z.string().optional(),
-    value: z.string().optional(),
-    id: z.string().optional(),
-  })).nullable().optional(),
-  id: z.string(),
   environments: z.record(z.string(), z.unknown()).nullable().optional(),
+  id: z.string(),
   kind: z.string().nullable().optional(),
+  maintainerIds: z.array(z.string()).nullable().optional(),
+  ownerId: z.string().nullable().optional(),
+  permanent: z.boolean().nullable().optional(),
+  projectId: z.string().nullable().optional(),
   revision: z.number().nullable().optional(),
   seed: z.number().nullable().optional(),
-  state: z.string().nullable().optional(),
-  maintainerIds: z.array(z.string()).nullable().optional(),
-  permanent: z.boolean().nullable().optional(),
-  tags: z.array(z.string()).nullable().optional(),
   slug: z.string().nullable().optional(),
-  createdAt: z.number().nullable().optional(),
+  state: z.string().nullable().optional(),
+  tags: z.array(z.string()).nullable().optional(),
+  typeName: z.string().nullable().optional(),
   updatedAt: z.number().nullable().optional(),
   updatedBy: z.string().nullable().optional(),
-  createdBy: z.string().nullable().optional(),
-  ownerId: z.string().nullable().optional(),
-  projectId: z.string().nullable().optional(),
-  typeName: z.string().nullable().optional(),
+  variants: z.array(z.object({
+    description: z.string().optional(),
+    id: z.string().optional(),
+    label: z.string().optional(),
+    value: z.string().optional(),
+  })).nullable().optional(),
   metadata: z.object({
     creator: z.object({
       id: z.string().optional(),
@@ -141,7 +141,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Flags. Registered at `@swamp/vercel/feature-flags/flags`. */
 export const model = {
   type: "@swamp/vercel/feature-flags/flags",
-  version: "2026.09.15.1",
+  version: "2026.09.16.1",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -195,6 +195,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -291,27 +296,27 @@ export const model = {
           filters.push(["permanent", String(g.permanent)]);
         }
         if (g.kind !== undefined) filters.push(["kind", String(g.kind)]);
-        if (g.id !== undefined) filters.push(["id", String(g.id)]);
-        if (g.revision !== undefined) {
-          filters.push(["revision", String(g.revision)]);
-        }
         if (g.createdAt !== undefined) {
           filters.push(["createdAt", String(g.createdAt)]);
         }
-        if (g.updatedAt !== undefined) {
-          filters.push(["updatedAt", String(g.updatedAt)]);
-        }
-        if (g.updatedBy !== undefined) {
-          filters.push(["updatedBy", String(g.updatedBy)]);
-        }
+        if (g.id !== undefined) filters.push(["id", String(g.id)]);
         if (g.ownerId !== undefined) {
           filters.push(["ownerId", String(g.ownerId)]);
         }
         if (g.projectId !== undefined) {
           filters.push(["projectId", String(g.projectId)]);
         }
+        if (g.revision !== undefined) {
+          filters.push(["revision", String(g.revision)]);
+        }
         if (g.typeName !== undefined) {
           filters.push(["typeName", String(g.typeName)]);
+        }
+        if (g.updatedAt !== undefined) {
+          filters.push(["updatedAt", String(g.updatedAt)]);
+        }
+        if (g.updatedBy !== undefined) {
+          filters.push(["updatedBy", String(g.updatedBy)]);
         }
         if (filters.length === 0) {
           throw new Error(

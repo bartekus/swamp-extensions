@@ -55,6 +55,9 @@ const GlobalArgsSchema = z.object({
   observability: z.object({
     enabled: z.boolean().optional(),
     head_sampling_rate: z.number().optional(),
+    issues: z.object({
+      enabled: z.boolean().optional(),
+    }).optional(),
     logs: z.object({
       destinations: z.array(z.string()).optional(),
       enabled: z.boolean().optional(),
@@ -136,6 +139,9 @@ const ResourceSchema = z.object({
   observability: z.object({
     enabled: z.boolean().optional(),
     head_sampling_rate: z.number().optional(),
+    issues: z.object({
+      enabled: z.boolean().optional(),
+    }).optional(),
     logs: z.object({
       destinations: z.array(z.string()).optional(),
       enabled: z.boolean().optional(),
@@ -207,6 +213,9 @@ const InputsSchema = z.object({
   observability: z.object({
     enabled: z.boolean().optional(),
     head_sampling_rate: z.number().optional(),
+    issues: z.object({
+      enabled: z.boolean().optional(),
+    }).optional(),
     logs: z.object({
       destinations: z.array(z.string()).optional(),
       enabled: z.boolean().optional(),
@@ -272,7 +281,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Workers. Registered at `@swamp/cloudflare/workers/workers`. */
 export const model = {
   type: "@swamp/cloudflare/workers/workers",
-  version: "2026.08.26.1",
+  version: "2026.09.16.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -311,6 +320,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

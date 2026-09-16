@@ -14,8 +14,8 @@ methods:
 - **delete** — remove the resource from AWS
 - **sync** — refresh all resource properties from AWS
 
-Use `swamp model type describe @swamp/aws/fms/notification_channel` to see the
-full list of configurable properties and available methods for this model.
+Use `swamp model type describe @swamp/aws/fms/applications_list` to see the full
+list of configurable properties and available methods for this model.
 
 ## Authentication
 
@@ -47,17 +47,17 @@ export AWS_SECRET_ACCESS_KEY=wJal...
 ## Usage
 
 ```bash
-# Create a new notification_channel model
-swamp model create @swamp/aws/fms/notification_channel my-notification_channel
+# Create a new applications_list model
+swamp model create @swamp/aws/fms/applications_list my-applications_list
 
 # Edit the model to configure its properties
-swamp model edit my-notification_channel
+swamp model edit my-applications_list
 
 # Create the resource in AWS
-swamp model method run my-notification_channel create
+swamp model method run my-applications_list create
 
 # Sync current state from AWS
-swamp model method run my-notification_channel sync
+swamp model method run my-applications_list sync
 ```
 
 ## License

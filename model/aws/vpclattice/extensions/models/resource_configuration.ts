@@ -80,7 +80,13 @@ const GlobalArgsSchema = z.object({
   ),
   AllowAssociationToSharableServiceNetwork: z.boolean().optional(),
   ProtocolType: z.enum(["TCP"]).optional(),
-  ResourceConfigurationType: z.enum(["GROUP", "CHILD", "SINGLE", "ARN"]),
+  ResourceConfigurationType: z.enum([
+    "GROUP",
+    "CHILD",
+    "SINGLE",
+    "ARN",
+    "CIDR",
+  ]),
   DomainVerificationId: z.string().min(20).max(20).regex(
     new RegExp("^dv-[a-fA-F0-9]{17}$"),
   ).optional(),
@@ -131,7 +137,7 @@ const InputsSchema = z.object({
   ).optional(),
   AllowAssociationToSharableServiceNetwork: z.boolean().optional(),
   ProtocolType: z.enum(["TCP"]).optional(),
-  ResourceConfigurationType: z.enum(["GROUP", "CHILD", "SINGLE", "ARN"])
+  ResourceConfigurationType: z.enum(["GROUP", "CHILD", "SINGLE", "ARN", "CIDR"])
     .optional(),
   DomainVerificationId: z.string().min(20).max(20).regex(
     new RegExp("^dv-[a-fA-F0-9]{17}$"),
@@ -159,7 +165,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for VpcLattice ResourceConfiguration. Registered at `@swamp/aws/vpclattice/resource-configuration`. */
 export const model = {
   type: "@swamp/aws/vpclattice/resource-configuration",
-  version: "2026.08.17.2",
+  version: "2026.09.16.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -213,6 +219,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

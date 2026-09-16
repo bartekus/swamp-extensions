@@ -71,22 +71,22 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
-  name: z.string().nullable().optional(),
   apexName: z.string().nullable().optional(),
+  createdAt: z.number().nullable().optional(),
+  customEnvironmentId: z.string().nullable().optional(),
+  gitBranch: z.string().nullable().optional(),
+  name: z.string().nullable().optional(),
   projectId: z.string().nullable().optional(),
   redirect: z.string().nullable().optional(),
   redirectStatusCode: z.number().nullable().optional(),
-  gitBranch: z.string().nullable().optional(),
-  customEnvironmentId: z.string().nullable().optional(),
   updatedAt: z.number().nullable().optional(),
-  createdAt: z.number().nullable().optional(),
-  verified: z.boolean().nullable().optional(),
   verification: z.array(z.object({
-    type: z.string().optional(),
     domain: z.string().optional(),
-    value: z.string().optional(),
     reason: z.string().optional(),
+    type: z.string().optional(),
+    value: z.string().optional(),
   })).nullable().optional(),
+  verified: z.boolean().nullable().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -112,7 +112,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Domains. Registered at `@swamp/vercel/projects/domains`. */
 export const model = {
   type: "@swamp/vercel/projects/domains",
-  version: "2026.08.03.4",
+  version: "2026.09.16.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -151,6 +151,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.03.4",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -248,14 +253,14 @@ export const model = {
         if (g.apexName !== undefined) {
           filters.push(["apexName", String(g.apexName)]);
         }
+        if (g.createdAt !== undefined) {
+          filters.push(["createdAt", String(g.createdAt)]);
+        }
         if (g.projectId !== undefined) {
           filters.push(["projectId", String(g.projectId)]);
         }
         if (g.updatedAt !== undefined) {
           filters.push(["updatedAt", String(g.updatedAt)]);
-        }
-        if (g.createdAt !== undefined) {
-          filters.push(["createdAt", String(g.createdAt)]);
         }
         if (g.verified !== undefined) {
           filters.push(["verified", String(g.verified)]);

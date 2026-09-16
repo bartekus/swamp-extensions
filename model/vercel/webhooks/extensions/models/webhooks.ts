@@ -168,13 +168,13 @@ const GlobalArgsSchema = z.object({
 
 const ResourceSchema = z.object({
   alertRuleIds: z.array(z.string()).nullable().optional(),
+  createdAt: z.number().nullable().optional(),
   events: z.array(z.string()).nullable().optional(),
   id: z.string(),
-  url: z.string().nullable().optional(),
   ownerId: z.string().nullable().optional(),
-  createdAt: z.number().nullable().optional(),
-  updatedAt: z.number().nullable().optional(),
   projectIds: z.array(z.string()).nullable().optional(),
+  updatedAt: z.number().nullable().optional(),
+  url: z.string().nullable().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -308,7 +308,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Webhooks. Registered at `@swamp/vercel/webhooks/webhooks`. */
 export const model = {
   type: "@swamp/vercel/webhooks/webhooks",
-  version: "2026.08.18.1",
+  version: "2026.09.16.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -342,6 +342,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -417,12 +422,12 @@ export const model = {
         const endpoint = "/v1/webhooks";
         const filters: [string, string][] = [];
         if (g.url !== undefined) filters.push(["url", String(g.url)]);
+        if (g.createdAt !== undefined) {
+          filters.push(["createdAt", String(g.createdAt)]);
+        }
         if (g.id !== undefined) filters.push(["id", String(g.id)]);
         if (g.ownerId !== undefined) {
           filters.push(["ownerId", String(g.ownerId)]);
-        }
-        if (g.createdAt !== undefined) {
-          filters.push(["createdAt", String(g.createdAt)]);
         }
         if (g.updatedAt !== undefined) {
           filters.push(["updatedAt", String(g.updatedAt)]);

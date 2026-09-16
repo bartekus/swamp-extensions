@@ -177,7 +177,9 @@ const GlobalArgsSchema = z.object({
     KubernetesNamespace: z.string(),
   }).optional(),
   EcsSettings: z.object({
-    ContainerInsights: z.enum(["ENABLED", "ENHANCED", "DISABLED"]).optional(),
+    ContainerInsights: z.enum(["ENABLED", "ENHANCED", "DISABLED"]).describe(
+      "The CloudWatch Container Insights setting applied to the Amazon ECS cluster that backs this compute environment. After you set this property, you can't revert it to the default (unset) state in which the setting is managed outside of AWS Batch. If you remove this property after previously setting it, AWS Batch treats the omission as DISABLED, because the underlying API has no way to unset the value. Because of this, if a stack rollback would return this property to its previous unset state, AWS Batch sets it to DISABLED instead.",
+    ).optional(),
   }).optional(),
   Context: z.string().optional(),
 });
@@ -281,7 +283,9 @@ const InputsSchema = z.object({
     KubernetesNamespace: z.string().optional(),
   }).optional(),
   EcsSettings: z.object({
-    ContainerInsights: z.enum(["ENABLED", "ENHANCED", "DISABLED"]).optional(),
+    ContainerInsights: z.enum(["ENABLED", "ENHANCED", "DISABLED"]).describe(
+      "The CloudWatch Container Insights setting applied to the Amazon ECS cluster that backs this compute environment. After you set this property, you can't revert it to the default (unset) state in which the setting is managed outside of AWS Batch. If you remove this property after previously setting it, AWS Batch treats the omission as DISABLED, because the underlying API has no way to unset the value. Because of this, if a stack rollback would return this property to its previous unset state, AWS Batch sets it to DISABLED instead.",
+    ).optional(),
   }).optional(),
   Context: z.string().optional(),
 });
@@ -305,7 +309,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Batch ComputeEnvironment. Registered at `@swamp/aws/batch/compute-environment`. */
 export const model = {
   type: "@swamp/aws/batch/compute-environment",
-  version: "2026.08.24.1",
+  version: "2026.09.16.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -365,6 +369,11 @@ export const model = {
     {
       toVersion: "2026.08.24.1",
       description: "Added: EcsSettings",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.16.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/autoscaling"
-version: "2026.09.15.1"
+version: "2026.09.16.1"
 description: "AWS AUTOSCALING infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -9,6 +9,8 @@ labels:
   - autoscaling
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: auto_scaling_group
 models:
   - auto_scaling_group.ts
   - launch_configuration.ts

@@ -14,8 +14,10 @@ methods:
 - **delete** — remove the resource from AWS
 - **sync** — refresh all resource properties from AWS
 
-Use `swamp model type describe @swamp/aws/comprehend/document_classifier` to see
-the full list of configurable properties and available methods for this model.
+Use
+`swamp model type describe @swamp/aws/comprehend/document_classifier_endpoint`
+to see the full list of configurable properties and available methods for this
+model.
 
 ## Authentication
 
@@ -47,17 +49,17 @@ export AWS_SECRET_ACCESS_KEY=wJal...
 ## Usage
 
 ```bash
-# Create a new document_classifier model
-swamp model create @swamp/aws/comprehend/document_classifier my-document_classifier
+# Create a new document_classifier_endpoint model
+swamp model create @swamp/aws/comprehend/document_classifier_endpoint my-document_classifier_endpoint
 
 # Edit the model to configure its properties
-swamp model edit my-document_classifier
+swamp model edit my-document_classifier_endpoint
 
 # Create the resource in AWS
-swamp model method run my-document_classifier create
+swamp model method run my-document_classifier_endpoint create
 
 # Sync current state from AWS
-swamp model method run my-document_classifier sync
+swamp model method run my-document_classifier_endpoint sync
 ```
 
 ## License

@@ -51,11 +51,11 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
-  id: z.string(),
-  createdAt: z.number().nullable().optional(),
-  expiresAt: z.number().nullable().optional(),
   autoRenew: z.boolean().nullable().optional(),
   cns: z.array(z.string()).nullable().optional(),
+  createdAt: z.number().nullable().optional(),
+  expiresAt: z.number().nullable().optional(),
+  id: z.string(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -71,7 +71,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Certs. Registered at `@swamp/vercel/certs/certs`. */
 export const model = {
   type: "@swamp/vercel/certs/certs",
-  version: "2026.08.03.3",
+  version: "2026.09.16.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -100,6 +100,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.03.3",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -170,16 +175,16 @@ export const model = {
         const g = context.globalArgs;
         const endpoint = "/v8/certs";
         const filters: [string, string][] = [];
-        if (g.id !== undefined) filters.push(["id", String(g.id)]);
+        if (g.autoRenew !== undefined) {
+          filters.push(["autoRenew", String(g.autoRenew)]);
+        }
         if (g.createdAt !== undefined) {
           filters.push(["createdAt", String(g.createdAt)]);
         }
         if (g.expiresAt !== undefined) {
           filters.push(["expiresAt", String(g.expiresAt)]);
         }
-        if (g.autoRenew !== undefined) {
-          filters.push(["autoRenew", String(g.autoRenew)]);
-        }
+        if (g.id !== undefined) filters.push(["id", String(g.id)]);
         if (filters.length === 0) {
           throw new Error(
             "At least one global argument must be set to filter by",
