@@ -212,6 +212,12 @@ The cache sync service maintains a local cache directory and syncs with GCS:
 - **Scoped sync** — advertises `capabilities().scopedSync = true`. When
   core passes `context.models`, pull reads partition files for just those
   models, avoiding the full monolithic index parse.
+- **Config refresh / subdir-scoped pull** — advertises
+  `capabilities().configRefresh = true`. When core passes `subdirs` (e.g.
+  `["config"]`), pull only lists, walks, prunes, and downloads index entries
+  under those prefixes. A scoped pull does not advance the fast-path sidecar
+  or clear lazy hydration, so a later full pull still picks up out-of-scope
+  changes.
 - **Namespace-scoped sync** — when `options.namespace` is set, index
   operations scope to `{namespace}/.datastore-index.json` and data walks
   are restricted to the namespace subtree. Three additional methods support

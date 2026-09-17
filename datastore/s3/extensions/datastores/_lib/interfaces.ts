@@ -152,6 +152,17 @@ export interface DatastoreSyncOptions {
   metadataOnly?: boolean;
   /** Namespace for multi-repo shared datastores. When set, scopes index and data operations to {namespace}/ prefix. */
   namespace?: string;
+  /**
+   * Restricts `pullChanged` to the listed datastore subdirectories.
+   * When set, the extension SHOULD only pull paths under these prefixes
+   * instead of walking the entire datastore. Extensions that advertise
+   * `configRefresh` in their capabilities SHOULD honor this option;
+   * extensions that don't can safely ignore it and pull everything.
+   *
+   * Used by the ConfigPoller to efficiently refresh only the `config/`
+   * prefix without pulling runtime data.
+   */
+  subdirs?: readonly string[];
 }
 
 /** A single row in a namespace catalog export. */

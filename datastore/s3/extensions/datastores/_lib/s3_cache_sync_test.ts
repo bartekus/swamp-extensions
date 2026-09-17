@@ -8571,3 +8571,220 @@ Deno.test("swamp-club#2033: pullChanged prunes stale entries via listing without
     await Deno.remove(cachePath, { recursive: true });
   }
 });
+
+// ==========================================================================
+// swamp-club#2246: pullChanged honors DatastoreSyncOptions.subdirs
+// capabilities() advertises configRefresh, so serve's pollers send
+// subdirs-scoped pulls. assertDatastoreExportConformance doesn't cover the
+// subdirs contract, so these are direct assertions.
+// ==========================================================================
+
+/** Seeds remote objects plus a monolithic index listing them. */
+function seedRemote(
+  mock: ReturnType<typeof createMockS3Client>,
+  files: Record<string, string>,
+  prefix = "",
+): void {
+  const entries: Record<
+    string,
+    { key: string; size: number; lastModified: string }
+  > = {};
+  for (const [rel, body] of Object.entries(files)) {
+    entries[rel] = {
+      key: rel,
+      size: body.length,
+      lastModified: new Date().toISOString(),
+    };
+    mock.storage.set(`${prefix}${rel}`, new TextEncoder().encode(body));
+  }
+  mock.storage.set(`${prefix}.datastore-index.json`, encodeIndex(entries));
+}
+
+async function exists(path: string): Promise<boolean> {
+  return await Deno.stat(path).then(() => true).catch(() => false);
+}
+
+Deno.test("swamp-club#2246: subdirs-scoped pull only downloads in-scope files", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2246-scope-" });
+  try {
+    const mock = createMockS3Client();
+    seedRemote(mock, {
+      "config/models/a.yaml": "a: 1\n",
+      "data/@m/x/raw": "data",
+    });
+
+    const svc = new S3CacheSyncService(mock, cachePath);
+    const pulled = await svc.pullChanged({ subdirs: ["config"] });
+
+    assertEquals(pulled, 1);
+    assertEquals(mock.gets.includes("data/@m/x/raw"), false);
+    assert(await exists(join(cachePath, "config/models/a.yaml")));
+    assertEquals(await exists(join(cachePath, "data/@m/x/raw")), false);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2246: nested subdirs match on a '/' boundary", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2246-nest-" });
+  try {
+    const mock = createMockS3Client();
+    seedRemote(mock, {
+      "data/swamp/grant/g1/raw": "g1",
+      "data/swamp/grants/g2/raw": "g2",
+    });
+
+    const svc = new S3CacheSyncService(mock, cachePath);
+    const pulled = await svc.pullChanged({ subdirs: ["data/swamp/grant/"] });
+
+    assertEquals(pulled, 1);
+    assertEquals(mock.gets.includes("data/swamp/grants/g2/raw"), false);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2246: scoped pull does not arm the fast path (monolithic)", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2246-arm-" });
+  try {
+    const mock = createMockS3Client();
+    seedRemote(mock, {
+      "config/models/a.yaml": "a: 1\n",
+      "data/@m/x/raw": "data",
+    });
+
+    const svc = new S3CacheSyncService(mock, cachePath);
+    await svc.pullChanged({ subdirs: ["config"] });
+    assertEquals((await readSidecar(cachePath))?.remoteIndexETag ?? "", "");
+
+    // A fresh process must take the slow path and fetch the skipped file.
+    const svc2 = new S3CacheSyncService(mock, cachePath);
+    assertEquals(await svc2.pullChanged(), 1);
+    assert(await exists(join(cachePath, "data/@m/x/raw")));
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2246: scoped pull does not record commitSeq (v2 shards)", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2246-v2-" });
+  try {
+    const mock = createMockS3Client();
+    const ts = new Date().toISOString();
+    seedV2Repo(mock, {
+      "data/t1/m1/d1/1/raw": {
+        key: "data/t1/m1/d1/1/raw",
+        size: 3,
+        lastModified: ts,
+      },
+      "data/t2/m1/d1/1/raw": {
+        key: "data/t2/m1/d1/1/raw",
+        size: 3,
+        lastModified: ts,
+      },
+    }, 5);
+    mock.storage.set("data/t1/m1/d1/1/raw", new TextEncoder().encode("t1\n"));
+    mock.storage.set("data/t2/m1/d1/1/raw", new TextEncoder().encode("t2\n"));
+
+    const svc = new S3CacheSyncService(mock, cachePath);
+    assertEquals(await svc.pullChanged({ subdirs: ["data/t1"] }), 1);
+    assertEquals((await readSidecar(cachePath))?.commitSeq, undefined);
+
+    const svc2 = new S3CacheSyncService(mock, cachePath);
+    assertEquals(await svc2.pullChanged(), 1);
+    assertEquals((await readSidecar(cachePath))?.commitSeq, 5);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2246: scoped pull does not clear lazyPullActive", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2246-lazy-" });
+  try {
+    const mock = createMockS3Client();
+    seedRemote(mock, {
+      "config/models/a.yaml": "a: 1\n",
+      "data/@m/x/1/raw": "data",
+    });
+
+    const svc = new S3CacheSyncService(mock, cachePath);
+    await svc.pullChanged({ metadataOnly: true });
+    await svc.pullChanged({ subdirs: ["config"] });
+
+    assertEquals(
+      ((await readSidecar(cachePath)) as Record<string, unknown>)
+        ?.lazyPullActive,
+      true,
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2246: scoped pull does not prune out-of-scope entries", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2246-prune-" });
+  try {
+    const mock = createMockS3Client();
+    seedRemote(mock, {
+      "config/models/a.yaml": "a: 1\n",
+      "data/@m/gone/raw": "gone",
+    });
+    mock.storage.delete("data/@m/gone/raw");
+
+    const svc = new S3CacheSyncService(mock, cachePath);
+    await svc.pullChanged({ subdirs: ["config"] });
+
+    assertExists(privateState(svc).index?.entries["data/@m/gone/raw"]);
+    assertEquals(
+      mock.puts.some((p) => p.key === ".datastore-index.json"),
+      false,
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2246: file-path subdir does not prune the file's entry", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2246-file-" });
+  try {
+    const mock = createMockS3Client();
+    seedRemote(mock, { "config/models/a.yaml": "a: 1\n" });
+
+    const svc = new S3CacheSyncService(mock, cachePath);
+    await svc.pullChanged({ subdirs: ["config/models/a.yaml"] });
+
+    assertExists(privateState(svc).index?.entries["config/models/a.yaml"]);
+    assertEquals(
+      mock.puts.some((p) => p.key === ".datastore-index.json"),
+      false,
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2246: namespaced scoped pull keeps pre-namespace root keys", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2246-ns-" });
+  try {
+    const mock = createMockS3Client();
+    // Index is namespaced, but the object only exists at the root key.
+    seedRemote(mock, { "config/models/a.yaml": "a: 1\n" }, "ns/");
+    mock.storage.set(
+      "config/models/a.yaml",
+      mock.storage.get("ns/config/models/a.yaml")!,
+    );
+    mock.storage.delete("ns/config/models/a.yaml");
+
+    const svc = new S3CacheSyncService(mock, cachePath);
+    const pulled = await svc.pullChanged({
+      subdirs: ["config"],
+      namespace: "ns",
+    });
+
+    assertEquals(pulled, 1);
+    assertExists(privateState(svc).index?.entries["config/models/a.yaml"]);
+    assert(await exists(join(cachePath, "ns/config/models/a.yaml")));
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});

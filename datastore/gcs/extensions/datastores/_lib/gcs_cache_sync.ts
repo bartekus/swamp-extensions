@@ -179,6 +179,15 @@ export function isLazySkippable(rel: string): boolean {
 }
 
 /**
+ * Whether a bare index-relative path falls under one of the `subdirs`
+ * requested by a scoped `pullChanged`. Matches on a `/` boundary so
+ * `data/swamp/grant` does not match `data/swamp/grants/...`.
+ */
+function isInSubdirs(rel: string, subdirs: readonly string[]): boolean {
+  return subdirs.some((d) => rel.startsWith(d + "/"));
+}
+
+/**
  * Rejects with `AbortError` if the signal is already aborted. Used at
  * phase boundaries so abort propagation doesn't have to ride on a
  * pending GCS call — the next boundary catches it first.
@@ -1713,6 +1722,16 @@ export class GcsCacheSyncService implements DatastoreSyncService {
           throwIfAborted(signal);
           await this.ensurePreflight(signal);
 
+          // Subdir-scoped pull (configRefresh): only list, walk, prune and
+          // download entries under these prefixes. A scoped pull never
+          // claims the whole cache is in sync — it must not advance the
+          // fast-path sidecar or clear lazy hydration, or a later unscoped
+          // pull would skip the out-of-scope changes (swamp-club #2246).
+          const subdirs = (options?.subdirs ?? [])
+            .map((d) => d.replace(/\/+$/, ""))
+            .filter((d) => d.length > 0);
+          const scoped = subdirs.length > 0;
+
           const skipFastPath = this.lazyPullActive && !options?.metadataOnly;
           const fastStart = Date.now();
           const fastResult = skipFastPath
@@ -1801,14 +1820,21 @@ export class GcsCacheSyncService implements DatastoreSyncService {
           // On listing failure (permissions, network), fall back to the
           // pre-#2033 per-file behavior — no pruning, 404s discovered
           // during download.
+          //
+          // Scoped pulls list each subdir at both root and namespace so the
+          // same pre-namespace root-key fallback still holds.
           const listStart = Date.now();
           const listNsPrefix = this.namespace ? `${this.namespace}/` : "";
           let remoteKeys: Set<string> | null = null;
           try {
-            const remoteListing = await this.gcs.listAllObjects(
-              undefined,
-              signal,
-            );
+            const remoteListing = scoped
+              ? (await Promise.all(
+                subdirs.flatMap((d) =>
+                  [`${d}/`, ...(listNsPrefix ? [`${listNsPrefix}${d}/`] : [])]
+                    .map((p) => this.gcs.listAllObjects(p, signal))
+                ),
+              )).flat()
+              : await this.gcs.listAllObjects(undefined, signal);
             remoteKeys = new Set<string>();
             for (const listEntry of remoteListing) {
               if (listNsPrefix && listEntry.key.startsWith(listNsPrefix)) {
@@ -1834,6 +1860,10 @@ export class GcsCacheSyncService implements DatastoreSyncService {
             const [rel, entry] of Object.entries(this.index?.entries ?? {})
           ) {
             if (isInternalCacheFile(rel)) {
+              continue;
+            }
+            // Out of scope: not listed, so must not be pruned or pulled.
+            if (scoped && !isInSubdirs(rel, subdirs)) {
               continue;
             }
             // Prune entries whose remote object no longer exists — the
@@ -1971,7 +2001,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
                   indexGeneration = putResult?.generation ?? indexGeneration;
                 }
               }
-              await this.markSynced(indexGeneration);
+              if (!scoped) await this.markSynced(indexGeneration);
             } catch {
               // Non-fatal: sidecar update is opportunistic.
             }
@@ -2030,16 +2060,18 @@ export class GcsCacheSyncService implements DatastoreSyncService {
               );
               this.indexMutated = false;
 
-              const sidecar = this.buildV2State({ localDirty: false });
-              sidecar.commitSeq = newMeta.commitSeq;
-              sidecar.remoteIndexGeneration = "";
-              await this.writeSyncState(sidecar);
+              if (!scoped) {
+                const sidecar = this.buildV2State({ localDirty: false });
+                sidecar.commitSeq = newMeta.commitSeq;
+                sidecar.remoteIndexGeneration = "";
+                await this.writeSyncState(sidecar);
+              }
             } catch {
               // Non-fatal: shard writeback is opportunistic. A missed
               // cleanup only costs repeated 404s on the next boot —
               // the same behavior as before this fix.
             }
-          } else if (v2CommitSeq !== null) {
+          } else if (v2CommitSeq !== null && !scoped) {
             // Shard-first path, clean pull (no 404 cleanup, no monolithic
             // index generation). Record commitSeq in the sidecar so the
             // fast path can arm on the next pull (swamp-club #1931).
@@ -2060,7 +2092,8 @@ export class GcsCacheSyncService implements DatastoreSyncService {
               this.buildV2State({ lazyPullActive: true }),
             );
           } else if (
-            this.lazyPullActive && !options?.context?.models?.length
+            this.lazyPullActive && !options?.context?.models?.length &&
+            !scoped
           ) {
             this.lazyPullActive = false;
             await this.writeSyncState(

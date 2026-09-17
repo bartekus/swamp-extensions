@@ -93,6 +93,11 @@ export SWAMP_S3_REQUEST_TIMEOUT_MS=120000
 - **Scoped sync**: The extension advertises `scopedSync` capability. When the
   framework passes `context.models`, pull and push operate only on the
   specified models.
+- **Config refresh / subdir-scoped pull**: The extension advertises
+  `configRefresh`. When the framework passes `subdirs` (e.g. `["config"]`),
+  pull only lists, walks, prunes, and downloads index entries under those
+  prefixes. A scoped pull does not advance the fast-path sidecar or clear lazy
+  hydration, so a later full pull still picks up out-of-scope changes.
 - **Namespace-scoped sync**: When `options.namespace` is set, index operations
   are scoped to `{namespace}/.datastore-index.json` and data walks are
   restricted to the namespace subtree. Three additional methods support
