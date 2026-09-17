@@ -3,6 +3,7 @@ export { parseEnrichmentSource } from "./parser.ts";
 import { enrichment as cloudidentityGroupsMemberships } from "./cloudidentity-groups-memberships.ts";
 import { enrichment as cloudresourcemanagerProjects } from "./cloudresourcemanager-projects.ts";
 import { enrichment as serviceaccounts } from "./serviceaccounts.ts";
+import { enrichment as securitycenterSourcesFindings } from "./securitycenter-sources-findings.ts";
 import { enrichment as storageBuckets } from "./storage-buckets.ts";
 
 export type { GcpEnrichment };
@@ -10,6 +11,7 @@ export type { GcpEnrichment };
 const ENRICHMENTS: GcpEnrichment[] = [
   cloudidentityGroupsMemberships,
   cloudresourcemanagerProjects,
+  securitycenterSourcesFindings,
   serviceaccounts,
   storageBuckets,
 ];

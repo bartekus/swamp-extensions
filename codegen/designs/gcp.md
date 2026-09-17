@@ -1292,7 +1292,11 @@ codegen/gcp/enrichments/
 ├── serviceaccounts.ts                              # Metadata
 ├── serviceaccounts.enrich.ts                       # Real TypeScript source
 ├── storage-buckets.ts                              # Metadata
-└── storage-buckets.enrich.ts                       # Real TypeScript source
+├── storage-buckets.enrich.ts                       # Real TypeScript source
+├── securitycenter-sources-findings.ts              # Metadata
+├── securitycenter-sources-findings.enrich.ts       # Enrichment source (inlined functions)
+├── securitycenter-sources-findings.helpers.ts      # Standalone testable helpers (see below)
+└── securitycenter-sources-findings.helpers_test.ts # Tests for the helpers
 ```
 
 ### Insertion points
@@ -1317,12 +1321,32 @@ The GCP extension model generator has four insertion points for enrichment:
 3. Import and add to the `ENRICHMENTS` array in `index.ts`.
 4. Regenerate the affected service.
 
+### Testable helpers pattern
+
+Enrichment `.enrich.ts` files reference model-scope functions (`BASE_URL`,
+`_buildGcpCredentials`, `request`, `getProjectId`) that only exist when the
+enrichment body is inlined into the generated model. This means enrichment
+methods cannot be tested in isolation.
+
+For enrichments with non-trivial logic (pagination, field curation, error
+handling), use the **testable helpers** pattern: define the core logic as
+module-level pure functions in the `.enrich.ts` body that accept all I/O
+dependencies as parameters (e.g. `requestFn` instead of the model-scope
+`request`). Then maintain a standalone `.helpers.ts` module with identical
+copies of those functions, importable by a `.helpers_test.ts` test file.
+
+The `securitycenter-sources-findings` enrichment is the precedent for this
+pattern. The controlled duplication (~70 lines) is linked by comments in both
+files. A future pipeline enhancement could eliminate it by supporting
+`helperFiles` in the enrichment config.
+
 ### Current enrichments
 
 | Resource                           | Methods                                                   | Description                                                                                                                                                          |
 | ---------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `cloudidentity.groups.memberships` | `set_members`                                             | Authoritative group membership reconciliation — add missing, remove strays                                                                                           |
 | `iam.serviceAccounts`              | `add_iam_binding`, `remove_iam_binding`, `manage_account` | Granular IAM binding management on service accounts via read-modify-write with etag; deterministic create-or-adopt lifecycle by email with safe 404/409/403 handling |
+| `securitycenter.sources.findings`  | `inventory_findings`                                      | SCC v2 location-scoped finding snapshot with curated metadata (excludes sourceProperties/secret)                                                                     |
 | `storage.buckets`                  | `add_iam_binding`, `remove_iam_binding`                   | Granular IAM binding management via read-modify-write with etag concurrency                                                                                          |
 
 ---
