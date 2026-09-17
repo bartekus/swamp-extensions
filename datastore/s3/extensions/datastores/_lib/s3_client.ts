@@ -698,6 +698,46 @@ export class S3Client {
     );
   }
 
+  /**
+   * Compare-and-swap upload. Writes only if the object's current ETag equals
+   * `etag` (If-Match), or only if the object is absent when `etag` is null
+   * (If-None-Match: *). Returns the new ETag on success and null when the
+   * precondition failed. Other errors, including NotImplemented from stores
+   * without conditional-write support, propagate.
+   */
+  async putObjectIfMatch(
+    key: string,
+    body: Uint8Array,
+    etag: string | null,
+    signal?: AbortSignal,
+  ): Promise<{ etag?: string } | null> {
+    try {
+      const response = await this.run(
+        "putObjectIfMatch",
+        new PutObjectCommand({
+          Bucket: this.bucket,
+          Key: this.fullKey(key),
+          Body: body,
+          ...(etag === null ? { IfNoneMatch: "*" } : { IfMatch: etag }),
+        }),
+        signal,
+      );
+      return { etag: response.ETag };
+    } catch (error) {
+      // Match on status too: a non-XML 412 body leaves the SDK unable to
+      // parse the error code, so the name alone isn't reliable.
+      if (
+        error instanceof S3OperationError &&
+        (error.name === "PreconditionFailed" ||
+          error.name === "ConditionalRequestConflict" ||
+          error.httpStatusCode === 412 || error.httpStatusCode === 409)
+      ) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
   /** Lists objects in S3 with the configured prefix. */
   async listObjects(
     subPrefix?: string,

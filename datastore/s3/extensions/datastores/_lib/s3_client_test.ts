@@ -160,6 +160,84 @@ Deno.test({
     ),
 });
 
+// --- swamp-club#2245: compare-and-swap index writes -----------------------
+
+Deno.test({
+  sanitizeResources: false,
+  name: "putObjectIfMatch sends If-Match, or If-None-Match: * for a null etag",
+  fn: async () => {
+    const seen: Array<{ ifMatch: string | null; ifNoneMatch: string | null }> =
+      [];
+    await withMockServer(
+      (req) => {
+        seen.push({
+          ifMatch: req.headers.get("if-match"),
+          ifNoneMatch: req.headers.get("if-none-match"),
+        });
+        return new Response(null, {
+          status: 200,
+          headers: { ETag: '"new"' },
+        });
+      },
+      async (client) => {
+        const body = new Uint8Array([1]);
+        assertEquals(await client.putObjectIfMatch("k", body, '"old"'), {
+          etag: '"new"',
+        });
+        assertEquals(await client.putObjectIfMatch("k", body, null), {
+          etag: '"new"',
+        });
+      },
+    );
+    assertEquals(seen, [
+      { ifMatch: '"old"', ifNoneMatch: null },
+      { ifMatch: null, ifNoneMatch: "*" },
+    ]);
+  },
+});
+
+Deno.test({
+  sanitizeResources: false,
+  name: "putObjectIfMatch returns null on 412 with a malformed non-XML body",
+  fn: () =>
+    withMockServer(
+      () =>
+        new Response("precondition failed", {
+          status: 412,
+          headers: { "Content-Type": "text/plain" },
+        }),
+      async (client) => {
+        assertEquals(
+          await client.putObjectIfMatch("k", new Uint8Array([1]), '"x"'),
+          null,
+        );
+      },
+    ),
+});
+
+Deno.test({
+  sanitizeResources: false,
+  name: "putObjectIfMatch propagates NotImplemented",
+  fn: () =>
+    withMockServer(
+      () =>
+        new Response(
+          '<?xml version="1.0"?><Error><Code>NotImplemented</Code><Message>If-Match</Message></Error>',
+          { status: 501, headers: { "Content-Type": "application/xml" } },
+        ),
+      async (client) => {
+        let caught: unknown;
+        try {
+          await client.putObjectIfMatch("k", new Uint8Array([1]), '"x"');
+        } catch (e) {
+          caught = e;
+        }
+        assert(caught instanceof S3OperationError);
+        assertEquals((caught as S3OperationError).name, "NotImplemented");
+      },
+    ),
+});
+
 // --- Issue #134: errors are enriched, not masked as "UnknownError" ---------
 
 Deno.test({

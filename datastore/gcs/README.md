@@ -196,6 +196,12 @@ The cache sync service maintains a local cache directory and syncs with GCS:
   `_index/` are the source of truth. Commits write only the dirty shards
   and `_meta.json`, skipping the monolithic `.datastore-index.json`
   upload entirely. Pre-v2 repos continue dual-writing both formats.
+  Every shard and `_meta.json` write is a compare-and-swap merge
+  (`ifGenerationMatch`) with bounded retry: a writer applies only its own
+  additions and deletions, so concurrent writers never drop each other's
+  index entries, with or without the global lock. Shards emptied by
+  deletions are unlisted from `_meta.json` but left in place as empty
+  objects.
   When core provides a scoped sync context (`context.models`), pull reads
   only the relevant partition files instead of the full monolithic index.
   Falls back to monolithic when partition files are missing (old writer).

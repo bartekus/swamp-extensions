@@ -249,6 +249,15 @@ const RETRY_BASE_DELAY_MS = 500;
 const RETRY_JITTER_FRACTION = 0.25;
 
 /**
+ * Jittered backoff between compare-and-swap attempts on index objects.
+ * Short on purpose: a lost race only means another writer just committed,
+ * so re-reading right away usually wins.
+ */
+function casBackoffMs(attempt: number): number {
+  return Math.floor(Math.random() * Math.min(1000, 25 * 2 ** attempt));
+}
+
+/**
  * Returns true when an error is a transient condition that should be
  * retried: request timeouts, 5xx service errors, 429 throttling, and
  * transport-level failures (connection reset, DNS, TLS handshake).
@@ -518,6 +527,10 @@ export class GcsCacheSyncService implements DatastoreSyncService {
   private namespaceBound = false;
   private preflightDone = false;
   private freshV2Initialized = false;
+  private static readonly SHARD_CAS_ATTEMPTS = 8;
+  // Generous: meta is tiny, and exhausting it after shards committed
+  // leaves a new partition unlisted until the next push.
+  private static readonly META_CAS_ATTEMPTS = 20;
 
   constructor(
     gcs: GcsClient,
@@ -833,49 +846,338 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     return { copied: copiedKeys.size, total: listing.length };
   }
 
+  /**
+   * Reads `_meta.json`, or null when it is absent. Callers read that null
+   * as "no v2 index" and respond by migrating, rebuilding from a partial
+   * view, or demoting the bucket back to v1 — all of which overwrite
+   * `_meta.json` and drop the partitions it listed. A meta that is
+   * present but unreadable must stop them instead, so it throws.
+   */
   private async readPartitionMeta(
     signal?: AbortSignal,
   ): Promise<PartitionMeta | null> {
+    const { meta, invalid } = await this.readPartitionMetaVersioned(signal);
+    if (invalid) {
+      throw new Error(
+        "[gcs-sync] _meta.json is present but is not a recognized v1/v2 index meta. Refusing to rebuild the index from a partial view; repair or remove _meta.json, then retry.",
+      );
+    }
+    return meta;
+  }
+
+  /**
+   * Reads `_meta.json` along with the generation of the bytes read.
+   * `generation` is null when the object is absent (create-only CAS).
+   * `invalid` separates "absent" from "present but not a recognized
+   * v1/v2 meta" — both yield `meta: null`, and a merge-on-write caller
+   * must not treat the second as an empty partition list.
+   */
+  private async readPartitionMetaVersioned(
+    signal?: AbortSignal,
+  ): Promise<
+    { meta: PartitionMeta | null; invalid: boolean; generation: string | null }
+  > {
     try {
-      const { data } = await retryWithBackoff(
+      const { data, generation } = await retryWithBackoff(
         () => this.gcs.getObject(this.metaKey(), signal),
         { signal },
       );
       const text = new TextDecoder().decode(data);
       const parsed = JSON.parse(text) as PartitionMeta;
-      if (
-        (parsed.version === 1 || parsed.version === 2) &&
-        Array.isArray(parsed.partitions)
-      ) {
-        return parsed;
-      }
-      return null;
+      const valid = (parsed.version === 1 || parsed.version === 2) &&
+        Array.isArray(parsed.partitions);
+      return {
+        meta: valid ? parsed : null,
+        invalid: !valid,
+        generation: generation ?? null,
+      };
     } catch (err) {
       if (err instanceof NotFoundError) {
-        return null;
+        return { meta: null, invalid: false, generation: null };
       }
       throw err;
     }
   }
 
+  /**
+   * Reads a shard, or null when it is absent. Callers read that null as
+   * "partition missing" and either fall back to the monolithic index or
+   * skip the partition's entries, so a shard that is present but
+   * unreadable throws rather than silently reading as empty.
+   */
   private async readShard(
     partitionKey: string,
     signal?: AbortSignal,
   ): Promise<Record<string, IndexEntry> | null> {
+    const { entries, invalid } = await this.readShardVersioned(
+      partitionKey,
+      signal,
+    );
+    if (invalid) {
+      throw new Error(
+        `[gcs-sync] Index shard "${partitionKey}" is present but is not a recognized v1 shard. Repair or remove it, then retry.`,
+      );
+    }
+    return entries;
+  }
+
+  /**
+   * Like `readShard`, plus the generation read (null when absent).
+   * `invalid` separates "shard absent" from "shard present but not a
+   * recognized v1 shard" — both yield `entries: null`, and a
+   * merge-on-write caller must not treat the second as an empty
+   * starting point.
+   */
+  private async readShardVersioned(
+    partitionKey: string,
+    signal?: AbortSignal,
+  ): Promise<
+    {
+      entries: Record<string, IndexEntry> | null;
+      invalid: boolean;
+      generation: string | null;
+    }
+  > {
     try {
-      const { data } = await retryWithBackoff(
+      const { data, generation } = await retryWithBackoff(
         () => this.gcs.getObject(this.shardKey(partitionKey), signal),
         { signal },
       );
       const text = new TextDecoder().decode(data);
       const partition = JSON.parse(text) as PartitionIndex;
-      if (partition.version !== 1) return null;
-      return partition.entries;
+      const valid = partition.version === 1 && partition.entries != null &&
+        typeof partition.entries === "object";
+      return {
+        entries: valid ? partition.entries : null,
+        invalid: !valid,
+        generation: generation ?? null,
+      };
     } catch (err) {
       if (err instanceof NotFoundError) {
-        return null;
+        return { entries: null, invalid: false, generation: null };
       }
       throw err;
+    }
+  }
+
+  /**
+   * Generation-conditioned write: create-only when `generation` is null
+   * (ifGenerationMatch=0), otherwise ifGenerationMatch=<generation>.
+   * Returns null when the precondition failed.
+   */
+  private async putIfGenerationMatch(
+    key: string,
+    body: Uint8Array,
+    generation: string | null,
+    signal?: AbortSignal,
+  ): Promise<{ generation: string } | null> {
+    return await retryWithBackoff(
+      () =>
+        generation === null
+          ? this.gcs.putObjectConditional(key, body, signal)
+          : this.gcs.putObjectCas(key, body, generation, signal),
+      { signal },
+    );
+  }
+
+  /**
+   * Commits one writer's index changes as compare-and-swap merges
+   * (swamp-club#2245). Each dirty shard is re-read, gets only these
+   * upserts/removals, and is written with a generation precondition; a
+   * lost race re-reads and re-merges. Then `_meta.json` gets the same
+   * treatment: partitions with entries are added, and a partition this
+   * call emptied is unlisted only while its shard still carries the
+   * generation written here. Empty shards are left in place, matching the
+   * S3 extension, where conditional DELETE is unreliable. Serialization
+   * never depends on the global lock.
+   *
+   * Returns the committed commitSeq and whether the remote index matched
+   * what this writer already knew (no entries merged in from other
+   * writers, and no commits since `baseCommitSeq`). Callers must only arm
+   * the sidecar commitSeq fast path when `upToDate` is true.
+   */
+  private async commitShardChanges(
+    upserts: Record<string, IndexEntry>,
+    removals: Iterable<string>,
+    baseCommitSeq: number,
+    signal?: AbortSignal,
+  ): Promise<{ commitSeq: number; upToDate: boolean }> {
+    const changes = new Map<
+      string,
+      { upserts: Record<string, IndexEntry>; removals: string[] }
+    >();
+    const changeFor = (rel: string) => {
+      const key = GcsCacheSyncService.partitionKeyFromPath(rel);
+      if (!key) return undefined;
+      let change = changes.get(key);
+      if (!change) {
+        change = { upserts: {}, removals: [] };
+        changes.set(key, change);
+      }
+      return change;
+    };
+    for (const [rel, entry] of Object.entries(upserts)) {
+      const change = changeFor(rel);
+      if (change) change.upserts[rel] = entry;
+    }
+    for (const rel of removals) changeFor(rel)?.removals.push(rel);
+
+    let retries = 0;
+    let upToDate = true;
+    const known = this.index?.entries ?? {};
+    // Written shard generation per partition; null when nothing was
+    // written because the shard was absent and stayed empty.
+    const written = new Map<
+      string,
+      { generation: string | null; empty: boolean }
+    >();
+
+    const commitShard = async (partKey: string) => {
+      const change = changes.get(partKey)!;
+      for (let attempt = 1;; attempt++) {
+        throwIfAborted(signal);
+        const { entries, invalid, generation } = await this.readShardVersioned(
+          partKey,
+          signal,
+        );
+        // Merging onto `{}` here would CAS-overwrite a shard we can't
+        // read with just this push's upserts, destroying the rest of the
+        // partition. `assembleIndexFromShards` already refuses to read
+        // such a shard; refuse to write it too.
+        if (invalid) {
+          throw new Error(
+            `[gcs-sync] Index shard "${partKey}" is not a recognized v1 shard; refusing to overwrite it. The push stays dirty; repair or remove the shard, then retry.`,
+          );
+        }
+        // A null generation on a shard that exists would take the
+        // create-only branch below, which can never succeed against it.
+        if (entries !== null && generation === null) {
+          throw new Error(
+            `[gcs-sync] GCS returned no generation for index shard "${partKey}"; compare-and-swap needs one to avoid clobbering concurrent writers. The push stays dirty; retry it.`,
+          );
+        }
+        const merged: Record<string, IndexEntry> = {
+          ...(entries ?? {}),
+          ...change.upserts,
+        };
+        for (const rel of change.removals) delete merged[rel];
+        for (const rel of Object.keys(merged)) {
+          if (isInternalCacheFile(rel)) delete merged[rel];
+        }
+        const empty = Object.keys(merged).length === 0;
+        if (empty && generation === null) {
+          written.set(partKey, { generation: null, empty });
+          return;
+        }
+        const body = new TextEncoder().encode(
+          JSON.stringify({ version: 1, entries: merged } as PartitionIndex),
+        );
+        const result = await this.putIfGenerationMatch(
+          this.shardKey(partKey),
+          body,
+          generation,
+          signal,
+        );
+        if (result) {
+          written.set(partKey, { generation: result.generation, empty });
+          for (const [rel, entry] of Object.entries(merged)) {
+            const mine = change.upserts[rel] ?? known[rel];
+            if (
+              !mine || mine.size !== entry.size || mine.sha256 !== entry.sha256
+            ) {
+              upToDate = false;
+            }
+          }
+          return;
+        }
+        if (attempt >= GcsCacheSyncService.SHARD_CAS_ATTEMPTS) {
+          throw new Error(
+            `[gcs-sync] Index shard "${partKey}" kept changing under concurrent writers (${attempt} compare-and-swap attempts). The push stays dirty; retry it.`,
+          );
+        }
+        retries++;
+        await abortableSleep(casBackoffMs(attempt), signal);
+      }
+    };
+
+    // A failed shard doesn't un-commit its successful siblings, so stop
+    // scheduling new work but still run the meta commit below — otherwise
+    // a brand-new partition keeps a committed shard that no reader can
+    // see. The failure is rethrown once its partitions are listed.
+    const partKeys = [...changes.keys()];
+    let shardFailure: unknown;
+    for (
+      let i = 0;
+      i < partKeys.length && shardFailure === undefined;
+      i += this.pushConcurrency
+    ) {
+      const results = await Promise.allSettled(
+        partKeys.slice(i, i + this.pushConcurrency).map(commitShard),
+      );
+      shardFailure = results.find((r) => r.status === "rejected")?.reason;
+    }
+
+    for (let attempt = 1;; attempt++) {
+      throwIfAborted(signal);
+      const { meta, invalid, generation } = await this
+        .readPartitionMetaVersioned(signal);
+      // Seeding from an empty set here would CAS-overwrite the partition
+      // list with only the partitions this call touched, silently
+      // unlisting every other one.
+      if (invalid) {
+        throw new Error(
+          `[gcs-sync] _meta.json is not a recognized v1/v2 index meta; refusing to overwrite it. Shards are committed but may be unlisted; repair _meta.json, then retry the push.`,
+        );
+      }
+      if (meta !== null && generation === null) {
+        throw new Error(
+          `[gcs-sync] GCS returned no generation for _meta.json; compare-and-swap needs one to avoid clobbering concurrent writers. Shards are committed but may be unlisted; the push stays dirty, retry it.`,
+        );
+      }
+      const v2 = meta?.version === 2 ? meta : null;
+      const partitions = new Set(meta?.partitions ?? []);
+      for (const [partKey, w] of written) {
+        if (!w.empty) {
+          partitions.add(partKey);
+        } else if (partitions.has(partKey)) {
+          const head = await retryWithBackoff(
+            () => this.gcs.getMetadata(this.shardKey(partKey), signal),
+            { signal },
+          );
+          const current = head.exists ? head.generation ?? undefined : null;
+          if (current === w.generation) partitions.delete(partKey);
+        }
+      }
+      const readSeq = v2?.commitSeq ?? 0;
+      const newMeta: PartitionMetaV2 = {
+        version: 2,
+        partitions: [...partitions].sort(),
+        commitSeq: readSeq + 1,
+      };
+      const result = await this.putIfGenerationMatch(
+        this.metaKey(),
+        new TextEncoder().encode(JSON.stringify(newMeta)),
+        generation,
+        signal,
+      );
+      if (result) {
+        if (readSeq !== baseCommitSeq) upToDate = false;
+        trace.getActiveSpan()?.setAttribute(
+          Attr.DATASTORE_CAS_RETRIES,
+          retries,
+        );
+        // Shards that did commit are now listed; surface the one that
+        // didn't so the push stays dirty and gets retried.
+        if (shardFailure !== undefined) throw shardFailure;
+        return { commitSeq: newMeta.commitSeq, upToDate };
+      }
+      if (attempt >= GcsCacheSyncService.META_CAS_ATTEMPTS) {
+        throw new Error(
+          `[gcs-sync] _meta.json kept changing under concurrent writers (${attempt} compare-and-swap attempts). Shards are committed but may be unlisted; the push stays dirty, retry it.`,
+        );
+      }
+      retries++;
+      await abortableSleep(casBackoffMs(attempt), signal);
     }
   }
 
@@ -1855,7 +2157,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
           const walkStart = Date.now();
           const toPull: string[] = [];
           const lazyDirsToCreate: Set<string> = new Set();
-          const pull404PartitionKeys = new Set<string>();
+          const pull404Rels = new Set<string>();
           for (
             const [rel, entry] of Object.entries(this.index?.entries ?? {})
           ) {
@@ -1871,8 +2173,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
             // Skipped when the listing failed (remoteKeys is null).
             if (remoteKeys && !remoteKeys.has(rel)) {
               if (this.index) {
-                const partKey = GcsCacheSyncService.partitionKeyFromPath(rel);
-                if (partKey) pull404PartitionKeys.add(partKey);
+                pull404Rels.add(rel);
                 delete this.index.entries[rel];
                 this.indexMutated = true;
               }
@@ -1963,10 +2264,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
               } else {
                 const err = result.reason;
                 if (err instanceof NotFoundError && this.index) {
-                  const partKey = GcsCacheSyncService.partitionKeyFromPath(
-                    batch[j],
-                  );
-                  if (partKey) pull404PartitionKeys.add(partKey);
+                  pull404Rels.add(batch[j]);
                   delete this.index.entries[batch[j]];
                   this.indexMutated = true;
                 } else {
@@ -2007,52 +2305,20 @@ export class GcsCacheSyncService implements DatastoreSyncService {
             }
           } else if (
             v2CommitSeq !== null && this.indexMutated &&
-            pull404PartitionKeys.size > 0 && this.index
+            pull404Rels.size > 0 && this.index
           ) {
             // Shard-first path: 404 cleanup removed stale entries from
-            // the in-memory index. Write back only the affected shards so
-            // the stale entries don't reappear on the next boot
-            // (swamp-club #2063).
+            // the in-memory index. CAS-remove only those entries from the
+            // affected shards so they don't reappear on the next boot
+            // (swamp-club #2063) and concurrent additions survive
+            // (swamp-club#2245).
             try {
-              const allPartitions = GcsCacheSyncService.groupEntriesByPartition(
-                this.index.entries,
+              const committed = await this.commitShardChanges(
+                {},
+                pull404Rels,
+                v2CommitSeq,
+                signal,
               );
-              const currentMeta = await this.readPartitionMeta(signal);
-              const survivingPartitions = currentMeta?.version === 2
-                ? new Set(
-                  (currentMeta as PartitionMetaV2).partitions,
-                )
-                : new Set(allPartitions.keys());
-
-              for (const partKey of pull404PartitionKeys) {
-                const entries = allPartitions.get(partKey);
-                if (entries && Object.keys(entries).length > 0) {
-                  await this.writeShard(partKey, entries, signal);
-                  survivingPartitions.add(partKey);
-                } else {
-                  try {
-                    await retryWithBackoff(
-                      () =>
-                        this.gcs.deleteObject(
-                          this.shardKey(partKey),
-                          undefined,
-                          signal,
-                        ),
-                      { signal },
-                    );
-                  } catch {
-                    // Non-fatal: shard may not exist
-                  }
-                  survivingPartitions.delete(partKey);
-                }
-              }
-
-              const newMeta: PartitionMetaV2 = {
-                version: 2,
-                partitions: [...survivingPartitions].sort(),
-                commitSeq: v2CommitSeq + 1,
-              };
-              await this.writePartitionMeta(newMeta, signal);
 
               await atomicWriteTextFile(
                 this.indexPath,
@@ -2062,7 +2328,9 @@ export class GcsCacheSyncService implements DatastoreSyncService {
 
               if (!scoped) {
                 const sidecar = this.buildV2State({ localDirty: false });
-                sidecar.commitSeq = newMeta.commitSeq;
+                if (committed.upToDate) {
+                  sidecar.commitSeq = committed.commitSeq;
+                }
                 sidecar.remoteIndexGeneration = "";
                 await this.writeSyncState(sidecar);
               }
@@ -2539,44 +2807,20 @@ export class GcsCacheSyncService implements DatastoreSyncService {
             }
 
             if (v2CommitSeq !== null) {
-              const allPartitions = GcsCacheSyncService.groupEntriesByPartition(
-                this.index.entries,
-              );
-              // Initialize from the full partition list so non-dirty
-              // shards are preserved — this.index may be partial when
-              // scoped assembly was used (#1913).
-              const currentMeta = await this.readPartitionMeta(signal);
-              const survivingPartitions = currentMeta?.version === 2
-                ? new Set((currentMeta as PartitionMetaV2).partitions)
-                : new Set(allPartitions.keys());
-              for (const partKey of dirtyPartitionKeys) {
-                const entries = allPartitions.get(partKey);
-                if (entries && Object.keys(entries).length > 0) {
-                  await this.writeShard(partKey, entries, signal);
-                  survivingPartitions.add(partKey);
-                } else {
-                  try {
-                    await retryWithBackoff(
-                      () =>
-                        this.gcs.deleteObject(
-                          this.shardKey(partKey),
-                          undefined,
-                          signal,
-                        ),
-                      { signal },
-                    );
-                  } catch {
-                    // Non-fatal: deleteObject on non-existent key is a no-op
-                  }
-                  survivingPartitions.delete(partKey);
-                }
+              // v2: CAS-merge only this push's upserts and deletes into
+              // the dirty shards and _meta.json (swamp-club#2245).
+              // Failures propagate so the push stays dirty.
+              const upserts: Record<string, IndexEntry> = {};
+              for (const { rel } of toPush) {
+                const entry = this.index.entries[rel];
+                if (entry) upserts[rel] = entry;
               }
-              const newMeta: PartitionMetaV2 = {
-                version: 2,
-                partitions: [...survivingPartitions].sort(),
-                commitSeq: v2CommitSeq + 1,
-              };
-              await this.writePartitionMeta(newMeta, signal);
+              const committed = await this.commitShardChanges(
+                upserts,
+                toDelete,
+                v2CommitSeq,
+                signal,
+              );
 
               await atomicWriteTextFile(
                 this.indexPath,
@@ -2590,10 +2834,10 @@ export class GcsCacheSyncService implements DatastoreSyncService {
                 this.dirtyPathsOverflowed = false;
                 const sidecar = this.buildV2State({ localDirty: false });
                 if (
-                  !this.indexIsPartial &&
+                  committed.upToDate && !this.indexIsPartial &&
                   await this.localHasAllRemoteEntries()
                 ) {
-                  sidecar.commitSeq = newMeta.commitSeq;
+                  sidecar.commitSeq = committed.commitSeq;
                 }
                 sidecar.remoteIndexGeneration = "";
                 await this.writeSyncState(sidecar);
@@ -3113,59 +3357,17 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     signal?: AbortSignal,
   ): Promise<number> {
     const shardStart = Date.now();
-    const dirtyKeys = new Set(data.dirtyPartitionKeys);
-
-    for (const rel of Object.keys(data.newEntries)) {
-      const key = GcsCacheSyncService.partitionKeyFromPath(rel);
-      if (key) dirtyKeys.add(key);
-    }
-    for (const rel of data.deletedKeys) {
-      const key = GcsCacheSyncService.partitionKeyFromPath(rel);
-      if (key) dirtyKeys.add(key);
-    }
-
-    const survivingPartitions = new Set(v2Meta.partitions);
-    for (const partKey of dirtyKeys) {
-      const existing = await this.readShard(partKey, signal) ?? {};
-
-      for (const [rel, entry] of Object.entries(data.newEntries)) {
-        const k = GcsCacheSyncService.partitionKeyFromPath(rel);
-        if (k === partKey) existing[rel] = entry;
-      }
-
-      for (const rel of data.deletedKeys) {
-        const k = GcsCacheSyncService.partitionKeyFromPath(rel);
-        if (k === partKey) delete existing[rel];
-      }
-
-      if (Object.keys(existing).length === 0) {
-        try {
-          await retryWithBackoff(
-            () =>
-              this.gcs.deleteObject(
-                this.shardKey(partKey),
-                undefined,
-                signal,
-              ),
-            { signal },
-          );
-        } catch {
-          // DeleteObject on non-existent key is a no-op in GCS
-        }
-        survivingPartitions.delete(partKey);
-      } else {
-        await this.writeShard(partKey, existing, signal);
-        survivingPartitions.add(partKey);
-      }
-    }
-
-    const newMeta: PartitionMetaV2 = {
-      version: 2,
-      partitions: [...survivingPartitions].sort(),
-      commitSeq: v2Meta.commitSeq + 1,
-    };
-    await this.writePartitionMeta(newMeta, signal);
-    tracePhase("commitPush.shards", shardStart, `dirty=${dirtyKeys.size}`);
+    const committed = await this.commitShardChanges(
+      data.newEntries,
+      data.deletedKeys,
+      v2Meta.commitSeq,
+      signal,
+    );
+    tracePhase(
+      "commitPush.shards",
+      shardStart,
+      `dirty=${data.dirtyPartitionKeys.length}`,
+    );
 
     // Update the local index cache from the in-memory state so
     // pullIndex's TTL cache and the fast-path sidecar stay coherent.
@@ -3207,10 +3409,10 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       // assembly) AND local cache has all remote entries — pull fast
       // path uses commitSeq and must not skip unfetched shards (#1225).
       if (
-        !this.indexIsPartial &&
+        committed.upToDate && !this.indexIsPartial &&
         await this.localHasAllRemoteEntries()
       ) {
-        sidecar.commitSeq = newMeta.commitSeq;
+        sidecar.commitSeq = committed.commitSeq;
       }
       sidecar.remoteIndexGeneration = "";
       await this.writeSyncState(sidecar);

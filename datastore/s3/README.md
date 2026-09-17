@@ -54,6 +54,11 @@ The datastore speaks the S3 API, so any S3-compatible object store works. Set
 `endpoint` (and `forcePathStyle: true` where required) to point at MinIO,
 DigitalOcean Spaces, Cloudflare R2, or other providers.
 
+The shard-first index needs If-Match support on PutObject for safe
+concurrent writes (AWS S3 and MinIO support it). When an endpoint answers
+`NotImplemented`, the extension warns once and falls back to merge-on-write
+without compare-and-swap, so concurrent writers can still lose index entries.
+
 ## Sync configuration
 
 Transfer concurrency is configurable via the `pullConcurrency` and
@@ -89,7 +94,13 @@ export SWAMP_S3_REQUEST_TIMEOUT_MS=120000
   per-model partition shards under `_index/` are the source of truth.
   Commits write only the dirty shards and `_meta.json`, skipping the
   monolithic `.datastore-index.json` upload entirely. Pre-v2 repos
-  continue dual-writing both formats.
+  continue dual-writing both formats. Every shard and `_meta.json` write is
+  a compare-and-swap merge (If-Match) with bounded retry: a writer applies
+  only its own additions and deletions, so concurrent writers (for example
+  `swamp serve` and a CLI `datastore sync --push`) never drop each other's
+  index entries, with or without the global lock. Shards emptied by
+  deletions are unlisted from `_meta.json` but left in place as empty
+  objects.
 - **Scoped sync**: The extension advertises `scopedSync` capability. When the
   framework passes `context.models`, pull and push operate only on the
   specified models.

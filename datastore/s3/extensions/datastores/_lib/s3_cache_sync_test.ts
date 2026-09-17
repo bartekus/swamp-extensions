@@ -135,6 +135,19 @@ function createMockS3Client(): S3Client & {
       return Promise.resolve(true);
     },
 
+    putObjectIfMatch(
+      key: string,
+      body: Uint8Array,
+      etag: string | null,
+    ): Promise<{ etag: string } | null> {
+      const current = storage.get(key);
+      const currentETag = current ? etagFor(key, current) : null;
+      if (currentETag !== etag) return Promise.resolve(null);
+      storage.set(key, body);
+      puts.push({ key, body });
+      return Promise.resolve({ etag: etagFor(key, body) });
+    },
+
     getObject(
       key: string,
     ): Promise<{ data: Uint8Array; etag?: string }> {
@@ -5905,7 +5918,7 @@ Deno.test("shard-first commitPush: mixed partition types (per-model + single-sha
 });
 
 // (11) Shard cleanup on deletion
-Deno.test("shard-first commitPush: deleting all entries in a model removes shard and partition key", async () => {
+Deno.test("shard-first commitPush: deleting all entries in a model unlists the partition and keeps an empty shard", async () => {
   const cachePath = await Deno.makeTempDir({ prefix: "s3sync-cleanup-" });
   try {
     const mock = createMockS3Client();
@@ -5924,11 +5937,13 @@ Deno.test("shard-first commitPush: deleting all entries in a model removes shard
     const manifest = await service.preparePush();
     await service.commitPush(manifest);
 
-    // m1 shard should be deleted
+    // The emptied shard is written empty, not deleted: S3-compatible
+    // stores ignore If-Match on DELETE, so a delete could erase entries a
+    // concurrent writer just added (swamp-club#2245).
     assertEquals(
-      mock.storage.has("_index/data--t1--m1.json"),
-      false,
-      "empty shard should be deleted",
+      decodeShard(mock.storage.get("_index/data--t1--m1.json")!).entries,
+      {},
+      "empty shard should remain with no entries",
     );
 
     // _meta.json should not list the deleted partition
@@ -8784,6 +8799,565 @@ Deno.test("swamp-club#2246: namespaced scoped pull keeps pre-namespace root keys
     assertEquals(pulled, 1);
     assertExists(privateState(svc).index?.entries["config/models/a.yaml"]);
     assert(await exists(join(cachePath, "ns/config/models/a.yaml")));
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// -- swamp-club#2245: shard and _meta.json writes are CAS merges ------------
+
+/**
+ * Reads the sync sidecar, failing if it is missing. The 2245 tests assert on
+ * fields being absent, which a missing sidecar would satisfy vacuously.
+ */
+async function requireSidecar(cachePath: string) {
+  const sidecar = await readSidecar(cachePath);
+  assertExists(sidecar, "sync sidecar must exist");
+  return sidecar;
+}
+
+/**
+ * Runs `hook` before each conditional write to `key` whose 1-based call
+ * number satisfies `when`, so a test can interleave a concurrent writer
+ * between this writer's read and its write. Returns the call counter.
+ */
+function interleaveBefore(
+  mock: ReturnType<typeof createMockS3Client>,
+  key: string,
+  when: (call: number) => boolean,
+  hook: () => void,
+): { calls: number } {
+  const counter = { calls: 0 };
+  const original = mock.putObjectIfMatch.bind(mock);
+  mock.putObjectIfMatch = (k, body, etag, signal) => {
+    if (k === key && when(++counter.calls)) hook();
+    return original(k, body, etag, signal);
+  };
+  return counter;
+}
+
+function indexEntry(rel: string, size = 4) {
+  return { key: rel, size, lastModified: new Date().toISOString() };
+}
+
+/** Adds an entry to a stored shard, as another writer's commit would. */
+function addRemoteShardEntry(
+  mock: ReturnType<typeof createMockS3Client>,
+  partKey: string,
+  rel: string,
+): void {
+  const key = `_index/${partKey}.json`;
+  const existing = mock.storage.get(key);
+  const shard = existing
+    ? decodeShard(existing)
+    : { version: 1, entries: {} as Record<string, unknown> };
+  shard.entries[rel] = indexEntry(rel);
+  mock.storage.set(key, new TextEncoder().encode(JSON.stringify(shard)));
+}
+
+/** Lists a partition and bumps commitSeq in the stored _meta.json. */
+function commitRemoteMeta(
+  mock: ReturnType<typeof createMockS3Client>,
+  partKey: string,
+  commitSeq: number,
+): void {
+  const meta = decodeMeta(mock.storage.get("_index/_meta.json")!);
+  const partitions = new Set(meta.partitions);
+  partitions.add(partKey);
+  mock.storage.set(
+    "_index/_meta.json",
+    new TextEncoder().encode(JSON.stringify({
+      version: 2,
+      partitions: [...partitions].sort(),
+      commitSeq,
+    })),
+  );
+}
+
+function storedShardKeys(
+  mock: ReturnType<typeof createMockS3Client>,
+  partKey: string,
+): string[] {
+  return Object.keys(
+    decodeShard(mock.storage.get(`_index/${partKey}.json`)!).entries,
+  ).sort();
+}
+
+Deno.test("swamp-club#2245: pushChanged keeps a shard entry another writer adds before the write-back", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2245-a-" });
+  try {
+    const mock = createMockS3Client();
+    seedV2Repo(mock, {
+      "config/models/a.yaml": indexEntry("config/models/a.yaml"),
+    }, 5);
+    mock.storage.set("config/models/a.yaml", new TextEncoder().encode("aaa\n"));
+    await seedFile(cachePath, "config/models/a.yaml", "aaa\n");
+    await seedFile(cachePath, "config/models/b.yaml", "bbb\n");
+
+    const shardPuts = interleaveBefore(
+      mock,
+      "_index/config.json",
+      (n) => n === 1,
+      () => addRemoteShardEntry(mock, "config", "config/models/t1.yaml"),
+    );
+
+    const service = new S3CacheSyncService(mock, cachePath);
+    await service.markDirty({ relPath: "config/models/b.yaml" });
+    await service.pushChanged();
+
+    assertEquals(storedShardKeys(mock, "config"), [
+      "config/models/a.yaml",
+      "config/models/b.yaml",
+      "config/models/t1.yaml",
+    ]);
+    assert(shardPuts.calls >= 2, "the lost race must be retried");
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2245: pushChanged with _meta.json missing the config partition keeps remote entries and does not arm commitSeq", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2245-b-" });
+  try {
+    const mock = createMockS3Client();
+    seedV2Repo(mock, {
+      "config/models/t1.yaml": indexEntry("config/models/t1.yaml"),
+    }, 5);
+    // Stale meta: the config shard exists but is not listed.
+    mock.storage.set(
+      "_index/_meta.json",
+      new TextEncoder().encode(
+        JSON.stringify({ version: 2, partitions: [], commitSeq: 5 }),
+      ),
+    );
+    await seedFile(cachePath, "config/models/new.yaml", "new\n");
+
+    const service = new S3CacheSyncService(mock, cachePath);
+    await service.pushChanged();
+
+    assertEquals(storedShardKeys(mock, "config"), [
+      "config/models/new.yaml",
+      "config/models/t1.yaml",
+    ]);
+    const meta = decodeMeta(mock.storage.get("_index/_meta.json")!);
+    assertEquals(meta.partitions, ["config"]);
+    assertEquals(meta.commitSeq, 6);
+    // t1 was merged from the remote but is not in the local cache, so the
+    // pull fast path must not be armed.
+    const sidecar = await requireSidecar(cachePath);
+    assertEquals(sidecar.localDirty, false);
+    assertEquals(sidecar.commitSeq, undefined);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2245: pushChanged keeps a partition and commitSeq another writer commits to _meta.json concurrently", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2245-c-" });
+  try {
+    const mock = createMockS3Client();
+    seedV2Repo(mock, {
+      "config/models/a.yaml": indexEntry("config/models/a.yaml"),
+    }, 5);
+    mock.storage.set("config/models/a.yaml", new TextEncoder().encode("aaa\n"));
+    await seedFile(cachePath, "config/models/a.yaml", "aaa\n");
+    await seedFile(cachePath, "config/models/b.yaml", "bbb\n");
+
+    interleaveBefore(mock, "_index/_meta.json", (n) => n === 1, () => {
+      addRemoteShardEntry(mock, "audit", "audit/e1.json");
+      commitRemoteMeta(mock, "audit", 9);
+    });
+
+    const service = new S3CacheSyncService(mock, cachePath);
+    await service.markDirty({ relPath: "config/models/b.yaml" });
+    await service.pushChanged();
+
+    const meta = decodeMeta(mock.storage.get("_index/_meta.json")!);
+    assertEquals(meta.partitions, ["audit", "config"]);
+    assertEquals(meta.commitSeq, 10);
+    assertEquals((await requireSidecar(cachePath)).commitSeq, undefined);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2245: pushChanged delete unlists an emptied partition but keeps the empty shard object", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2245-d-" });
+  try {
+    const mock = createMockS3Client();
+    seedV2Repo(mock, {
+      "data/t1/m1/d1/1/raw": indexEntry("data/t1/m1/d1/1/raw"),
+      "data/t2/m2/d2/1/raw": indexEntry("data/t2/m2/d2/1/raw"),
+    }, 5);
+    mock.storage.set("data/t1/m1/d1/1/raw", new TextEncoder().encode("aaa\n"));
+    mock.storage.set("data/t2/m2/d2/1/raw", new TextEncoder().encode("bbb\n"));
+    await seedFile(cachePath, "data/t2/m2/d2/1/raw", "bbb\n");
+    await Deno.mkdir(join(cachePath, "data/t1/m1/d1/1"), { recursive: true });
+
+    const service = new S3CacheSyncService(mock, cachePath);
+    await service.markDirty({ relPath: "data/t1/m1/d1/1/raw" });
+    await service.pushChanged();
+
+    assertEquals(mock.storage.has("data/t1/m1/d1/1/raw"), false);
+    assertEquals(storedShardKeys(mock, "data--t1--m1"), []);
+    const meta = decodeMeta(mock.storage.get("_index/_meta.json")!);
+    assertEquals(meta.partitions, ["data--t2--m2"]);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2245: an emptied shard stays listed when another writer adds to it before the meta commit", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2245-e-" });
+  try {
+    const mock = createMockS3Client();
+    seedV2Repo(mock, {
+      "data/t1/m1/d1/1/raw": indexEntry("data/t1/m1/d1/1/raw"),
+      "data/t2/m2/d2/1/raw": indexEntry("data/t2/m2/d2/1/raw"),
+    }, 5);
+    mock.storage.set("data/t1/m1/d1/1/raw", new TextEncoder().encode("aaa\n"));
+    mock.storage.set("data/t2/m2/d2/1/raw", new TextEncoder().encode("bbb\n"));
+    await seedFile(cachePath, "data/t2/m2/d2/1/raw", "bbb\n");
+    await Deno.mkdir(join(cachePath, "data/t1/m1/d1/1"), { recursive: true });
+
+    // Another writer commits a new t1/m1 entry (shard, then meta) after
+    // this push emptied the shard and before its meta write lands.
+    interleaveBefore(mock, "_index/_meta.json", (n) => n === 1, () => {
+      addRemoteShardEntry(mock, "data--t1--m1", "data/t1/m1/d1/2/raw");
+      commitRemoteMeta(mock, "data--t1--m1", 6);
+    });
+
+    const service = new S3CacheSyncService(mock, cachePath);
+    await service.markDirty({ relPath: "data/t1/m1/d1/1/raw" });
+    await service.pushChanged();
+
+    assertEquals(storedShardKeys(mock, "data--t1--m1"), [
+      "data/t1/m1/d1/2/raw",
+    ]);
+    const meta = decodeMeta(mock.storage.get("_index/_meta.json")!);
+    assertEquals(meta.partitions, ["data--t1--m1", "data--t2--m2"]);
+    assertEquals(meta.commitSeq, 7);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2245: pull 404 cleanup removes only the 404'd entries and keeps concurrent additions", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2245-f-" });
+  try {
+    const mock = createMockS3Client();
+    seedV2Repo(mock, {
+      "config/settings.yaml": indexEntry("config/settings.yaml", 10),
+      "config/models/_instances/gone.yaml": indexEntry(
+        "config/models/_instances/gone.yaml",
+      ),
+    }, 5);
+    mock.storage.set(
+      "config/settings.yaml",
+      new TextEncoder().encode("valid: yes"),
+    );
+
+    interleaveBefore(
+      mock,
+      "_index/config.json",
+      (n) => n === 1,
+      () => addRemoteShardEntry(mock, "config", "config/models/t1.yaml"),
+    );
+
+    const service = new S3CacheSyncService(mock, cachePath);
+    await service.pullChanged();
+
+    assertEquals(storedShardKeys(mock, "config"), [
+      "config/models/t1.yaml",
+      "config/settings.yaml",
+    ]);
+    assertEquals(
+      decodeMeta(mock.storage.get("_index/_meta.json")!).commitSeq,
+      6,
+    );
+    assertEquals((await requireSidecar(cachePath)).commitSeq, undefined);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2245: commitPush merges with concurrent shard and _meta.json writers", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2245-g-" });
+  try {
+    const mock = createMockS3Client();
+    seedV2Repo(mock, {
+      "config/models/a.yaml": indexEntry("config/models/a.yaml"),
+    }, 5);
+    mock.storage.set("config/models/a.yaml", new TextEncoder().encode("aaa\n"));
+    await seedFile(cachePath, "config/models/a.yaml", "aaa\n");
+    await seedFile(cachePath, "config/models/b.yaml", "bbb\n");
+
+    const service = new S3CacheSyncService(mock, cachePath);
+    await service.markDirty({ relPath: "config/models/b.yaml" });
+    const manifest = await service.preparePush();
+
+    const shardPuts = interleaveBefore(
+      mock,
+      "_index/config.json",
+      (n) => n === 1,
+      () => addRemoteShardEntry(mock, "config", "config/models/t1.yaml"),
+    );
+    interleaveBefore(mock, "_index/_meta.json", (n) => n === 1, () => {
+      addRemoteShardEntry(mock, "audit", "audit/e1.json");
+      commitRemoteMeta(mock, "audit", 9);
+    });
+    await service.commitPush(manifest);
+
+    assertEquals(storedShardKeys(mock, "config"), [
+      "config/models/a.yaml",
+      "config/models/b.yaml",
+      "config/models/t1.yaml",
+    ]);
+    assert(shardPuts.calls >= 2, "the lost shard race must be retried");
+    const meta = decodeMeta(mock.storage.get("_index/_meta.json")!);
+    assertEquals(meta.partitions, ["audit", "config"]);
+    assertEquals(meta.commitSeq, 10);
+    assertEquals((await requireSidecar(cachePath)).commitSeq, undefined);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2245: exhausting shard CAS retries fails the push and the next push commits the entry", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2245-h-" });
+  try {
+    const mock = createMockS3Client();
+    seedV2Repo(mock, {
+      "config/models/a.yaml": indexEntry("config/models/a.yaml"),
+    }, 5);
+    mock.storage.set("config/models/a.yaml", new TextEncoder().encode("aaa\n"));
+    await seedFile(cachePath, "config/models/a.yaml", "aaa\n");
+    await seedFile(cachePath, "config/models/b.yaml", "bbb\n");
+
+    let contended = true;
+    let n = 0;
+    interleaveBefore(
+      mock,
+      "_index/config.json",
+      () => contended,
+      () => addRemoteShardEntry(mock, "config", `config/models/x${n++}.yaml`),
+    );
+
+    const service = new S3CacheSyncService(mock, cachePath);
+    await service.markDirty({ relPath: "config/models/b.yaml" });
+    await assertRejects(() => service.pushChanged(), Error, "compare-and-swap");
+    assertEquals((await requireSidecar(cachePath)).localDirty, true);
+
+    contended = false;
+    await service.pushChanged();
+    assert(
+      storedShardKeys(mock, "config").includes("config/models/b.yaml"),
+      "the retried push must commit the entry",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2245: a store without If-Match support falls back to merge-on-write and warns once", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2245-i-" });
+  const originalWarn = console.warn;
+  const warnings: string[] = [];
+  console.warn = (msg: string) => warnings.push(msg);
+  try {
+    const mock = createMockS3Client();
+    mock.putObjectIfMatch = () => {
+      const err = new Error("NotImplemented: If-Match");
+      err.name = "NotImplemented";
+      return Promise.reject(err);
+    };
+    seedV2Repo(mock, {
+      "config/models/a.yaml": indexEntry("config/models/a.yaml"),
+    }, 5);
+    // Another writer's entry the local view lacks.
+    addRemoteShardEntry(mock, "config", "config/models/t1.yaml");
+    mock.storage.set("config/models/a.yaml", new TextEncoder().encode("aaa\n"));
+    await seedFile(cachePath, "config/models/a.yaml", "aaa\n");
+
+    const service = new S3CacheSyncService(mock, cachePath);
+    await seedFile(cachePath, "config/models/b.yaml", "bbb\n");
+    await service.markDirty({ relPath: "config/models/b.yaml" });
+    await service.pushChanged();
+    await seedFile(cachePath, "config/models/c.yaml", "ccc\n");
+    await service.markDirty({ relPath: "config/models/c.yaml" });
+    await service.pushChanged();
+
+    assertEquals(storedShardKeys(mock, "config"), [
+      "config/models/a.yaml",
+      "config/models/b.yaml",
+      "config/models/c.yaml",
+      "config/models/t1.yaml",
+    ]);
+    assertEquals(
+      warnings.filter((w) => w.includes("If-Match")).length,
+      1,
+      "the fallback warning must be emitted once",
+    );
+  } finally {
+    console.warn = originalWarn;
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2245: an unrecognized _meta.json fails the push instead of unlisting every partition", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2245-j-" });
+  try {
+    const mock = createMockS3Client();
+    seedV2Repo(mock, {
+      "config/models/a.yaml": indexEntry("config/models/a.yaml"),
+      "logs/run.txt": indexEntry("logs/run.txt"),
+    }, 5);
+    // Written by a newer version this build cannot interpret.
+    const future = JSON.stringify({
+      version: 3,
+      partitions: ["config", "logs"],
+      commitSeq: 5,
+    });
+    mock.storage.set("_index/_meta.json", new TextEncoder().encode(future));
+    await seedFile(cachePath, "config/models/b.yaml", "bbb\n");
+
+    const service = new S3CacheSyncService(mock, cachePath);
+    await service.markDirty({ relPath: "config/models/b.yaml" });
+    await assertRejects(
+      () => service.pushChanged(),
+      Error,
+      "not a recognized v1/v2 index meta",
+    );
+
+    assertEquals(
+      new TextDecoder().decode(mock.storage.get("_index/_meta.json")!),
+      future,
+      "the unreadable meta must be left untouched, not rebuilt from a partial view",
+    );
+    assertEquals((await requireSidecar(cachePath)).localDirty, true);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2245: an unrecognized shard fails the push instead of truncating the partition", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2245-k-" });
+  try {
+    const mock = createMockS3Client();
+    seedV2Repo(mock, {
+      "config/models/a.yaml": indexEntry("config/models/a.yaml"),
+    }, 5);
+    const future = JSON.stringify({
+      version: 2,
+      entries: { "config/models/a.yaml": indexEntry("config/models/a.yaml") },
+    });
+    mock.storage.set("_index/config.json", new TextEncoder().encode(future));
+    await seedFile(cachePath, "config/models/b.yaml", "bbb\n");
+
+    const service = new S3CacheSyncService(mock, cachePath);
+    await service.markDirty({ relPath: "config/models/b.yaml" });
+    await assertRejects(
+      () => service.pushChanged(),
+      Error,
+      "not a recognized v1 shard",
+    );
+
+    assertEquals(
+      new TextDecoder().decode(mock.storage.get("_index/config.json")!),
+      future,
+      "the unreadable shard must be left untouched, not truncated",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2245: a 501 with an unparseable error code still triggers the merge-on-write fallback, warning once", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2245-l-" });
+  const originalWarn = console.warn;
+  const warnings: string[] = [];
+  console.warn = (msg: string) => warnings.push(msg);
+  try {
+    const mock = createMockS3Client();
+    // A non-XML 501 body leaves the SDK unable to parse the error code,
+    // so only the status identifies the store as CAS-less.
+    mock.putObjectIfMatch = () =>
+      Promise.reject(
+        new S3OperationError("501 Not Implemented", {
+          name: "UnknownError",
+          cause: undefined,
+          httpStatusCode: 501,
+          code: undefined,
+          requestId: undefined,
+          bodyPreview: "<html>501 Not Implemented</html>",
+        }),
+      );
+    seedV2Repo(mock, {
+      "config/models/a.yaml": indexEntry("config/models/a.yaml"),
+    }, 5);
+    addRemoteShardEntry(mock, "config", "config/models/t1.yaml");
+    mock.storage.set("config/models/a.yaml", new TextEncoder().encode("aaa\n"));
+    await seedFile(cachePath, "config/models/a.yaml", "aaa\n");
+
+    // Two partitions commit in the same batch, so both enter the
+    // conditional write before the fallback flag is set.
+    const service = new S3CacheSyncService(mock, cachePath);
+    await seedFile(cachePath, "config/models/b.yaml", "bbb\n");
+    await seedFile(cachePath, "logs/run.txt", "log\n");
+    await service.markDirty({ relPath: "config/models/b.yaml" });
+    await service.markDirty({ relPath: "logs/run.txt" });
+    await service.pushChanged();
+
+    assertEquals(storedShardKeys(mock, "config"), [
+      "config/models/a.yaml",
+      "config/models/b.yaml",
+      "config/models/t1.yaml",
+    ]);
+    assertEquals(storedShardKeys(mock, "logs"), ["logs/run.txt"]);
+    assertEquals(
+      warnings.filter((w) => w.includes("If-Match")).length,
+      1,
+      "the fallback warning must be emitted once, not once per partition",
+    );
+  } finally {
+    console.warn = originalWarn;
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2245: a partition that exhausts CAS still leaves its committed siblings listed in _meta.json", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2245-m-" });
+  try {
+    const mock = createMockS3Client();
+    seedV2Repo(mock, {
+      "config/models/a.yaml": indexEntry("config/models/a.yaml"),
+    }, 5);
+    mock.storage.set("config/models/a.yaml", new TextEncoder().encode("aaa\n"));
+    await seedFile(cachePath, "config/models/a.yaml", "aaa\n");
+    await seedFile(cachePath, "config/models/b.yaml", "bbb\n");
+    await seedFile(cachePath, "logs/run.txt", "log\n");
+
+    // "config" never wins its CAS; "logs" (a brand-new partition) does.
+    let n = 0;
+    interleaveBefore(
+      mock,
+      "_index/config.json",
+      () => true,
+      () => addRemoteShardEntry(mock, "config", `config/models/x${n++}.yaml`),
+    );
+
+    const service = new S3CacheSyncService(mock, cachePath);
+    await service.markDirty({ relPath: "config/models/b.yaml" });
+    await service.markDirty({ relPath: "logs/run.txt" });
+    await assertRejects(() => service.pushChanged(), Error, "compare-and-swap");
+
+    const meta = decodeMeta(mock.storage.get("_index/_meta.json")!);
+    assert(
+      meta.partitions.includes("logs"),
+      "the sibling shard committed, so a reader must be able to find it",
+    );
+    assertEquals(storedShardKeys(mock, "logs"), ["logs/run.txt"]);
+    assertEquals((await requireSidecar(cachePath)).localDirty, true);
   } finally {
     await Deno.remove(cachePath, { recursive: true });
   }

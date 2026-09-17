@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/gcs-datastore"
-version: "2026.09.17.1"
+version: "2026.09.17.2"
 description: |
   Store data in a Google Cloud Storage bucket with local cache synchronization.
   Provides distributed locking via GCS generation-based preconditions with
@@ -10,7 +10,9 @@ description: |
   in traces when a TracerProvider is configured. Features
   shard-first indexing with per-model partition shards under _index/ as the
   source of truth (v2 repos skip the monolithic index upload entirely),
-  commitSeq-based zero-diff fast path, two-phase sync to narrow the
+  commitSeq-based zero-diff fast path, compare-and-swap (ifGenerationMatch)
+  merges for every shard and _meta.json write so concurrent writers never
+  drop each other's index entries, two-phase sync to narrow the
   global-lock critical section, SHA-256 content hashing, per-path dirty
   tracking, namespace-scoped sync for multi-repo shared datastores,
   configurable transfer concurrency, configurable per-request timeout,
