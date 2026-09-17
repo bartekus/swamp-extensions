@@ -1285,18 +1285,32 @@ codegen/gcp/enrichments/
 ├── parser.ts                                       # parseEnrichmentSource()
 ├── parser_test.ts                                  # Parser tests
 ├── index.ts                                        # Registry: getEnrichment(), getServiceEnrichmentImports()
+├── bigquery-jobs.ts                                # Metadata
+├── bigquery-jobs.enrich.ts                         # run_query: poll, paginate, persist query results
+├── billingbudgets-budgets.ts                       # Metadata
+├── billingbudgets-budgets.enrich.ts                # ensure_budget: convergent budget lifecycle
 ├── cloudidentity-groups-memberships.ts             # Metadata
-├── cloudidentity-groups-memberships.enrich.ts      # Real TypeScript source
+├── cloudidentity-groups-memberships.enrich.ts      # set_members: authoritative reconciliation
+├── cloudresourcemanager-organizations.ts           # Metadata
+├── cloudresourcemanager-organizations.enrich.ts    # inventory_hierarchy: recursive org traversal
 ├── cloudresourcemanager-projects.ts                # Metadata
-├── cloudresourcemanager-projects.enrich.ts         # Real TypeScript source
+├── cloudresourcemanager-projects.enrich.ts         # add/remove_iam_binding
+├── logging-sinks.ts                                # Metadata
+├── logging-sinks.enrich.ts                         # ensure_audit_sink: convergent sink setup
+├── orgpolicy-policies.ts                           # Metadata
+├── orgpolicy-policies.enrich.ts                    # audit_effective_policies: batch snapshots
+├── recommender-recommendations.ts                  # Metadata
+├── recommender-recommendations.enrich.ts           # inventory_recommendations: multi-scope snapshot
 ├── serviceaccounts.ts                              # Metadata
-├── serviceaccounts.enrich.ts                       # Real TypeScript source
-├── storage-buckets.ts                              # Metadata
-├── storage-buckets.enrich.ts                       # Real TypeScript source
+├── serviceaccounts.enrich.ts                       # add/remove_iam_binding, manage_account
+├── serviceusage-services.ts                        # Metadata
+├── serviceusage-services.enrich.ts                 # inventory_enabled: enabled-services snapshot
 ├── securitycenter-sources-findings.ts              # Metadata
 ├── securitycenter-sources-findings.enrich.ts       # Enrichment source (inlined functions)
 ├── securitycenter-sources-findings.helpers.ts      # Standalone testable helpers (see below)
-└── securitycenter-sources-findings.helpers_test.ts # Tests for the helpers
+├── securitycenter-sources-findings.helpers_test.ts # Tests for the helpers
+├── storage-buckets.ts                              # Metadata
+└── storage-buckets.enrich.ts                       # add/remove_iam_binding
 ```
 
 ### Insertion points
@@ -1342,12 +1356,19 @@ files. A future pipeline enhancement could eliminate it by supporting
 
 ### Current enrichments
 
-| Resource                           | Methods                                                   | Description                                                                                                                                                          |
-| ---------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `cloudidentity.groups.memberships` | `set_members`                                             | Authoritative group membership reconciliation — add missing, remove strays                                                                                           |
-| `iam.serviceAccounts`              | `add_iam_binding`, `remove_iam_binding`, `manage_account` | Granular IAM binding management on service accounts via read-modify-write with etag; deterministic create-or-adopt lifecycle by email with safe 404/409/403 handling |
-| `securitycenter.sources.findings`  | `inventory_findings`                                      | SCC v2 location-scoped finding snapshot with curated metadata (excludes sourceProperties/secret)                                                                     |
-| `storage.buckets`                  | `add_iam_binding`, `remove_iam_binding`                   | Granular IAM binding management via read-modify-write with etag concurrency                                                                                          |
+| Resource                                   | Methods                                                   | Description                                                                                                                                                          |
+| ------------------------------------------ | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bigquery.jobs`                            | `run_query`                                               | Typed query: submit job, poll until DONE, paginate all result pages, persist results + job provenance with bounded maxResults                                        |
+| `billingbudgets.budgets`                   | `ensure_budget`                                           | Convergent create-or-adopt-or-update by ID or unique displayName with etag-protected updates, notification verification, and read-back                               |
+| `cloudidentity.groups.memberships`         | `set_members`                                             | Authoritative group membership reconciliation — add missing, remove strays                                                                                           |
+| `cloudresourcemanager.organizations`       | `inventory_hierarchy`                                     | Recursive BFS traversal of folders and projects under an org, with maxNodes limit, repeated-token detection, and parent links                                        |
+| `iam.serviceAccounts`                      | `add_iam_binding`, `remove_iam_binding`, `manage_account` | Granular IAM binding management on service accounts via read-modify-write with etag; deterministic create-or-adopt lifecycle by email with safe 404/409/403 handling |
+| `logging.sinks`                            | `ensure_audit_sink`                                       | Convergent audit-log sink setup: create/adopt/update with destination bucket verification (must be ACTIVE), writerIdentity preservation for downstream IAM           |
+| `orgpolicy.policies`                       | `audit_effective_policies`                                | Batch effective-policy snapshots: fan-out over resource/constraint pairs, fail on access errors, preserve full PolicySpec rules                                      |
+| `recommender.recommenders.recommendations` | `inventory_recommendations`                               | Multi-scope recommendation snapshot: fan-out across explicit parent paths with full pagination, bounded maxItems, per-parent counts                                  |
+| `securitycenter.sources.findings`          | `inventory_findings`                                      | SCC v2 location-scoped finding snapshot with curated metadata (excludes sourceProperties/secret)                                                                     |
+| `serviceusage.services`                    | `inventory_enabled`                                       | Complete paginated enabled-services snapshot for drift reports, with declared maxItems limit that fails rather than silently truncating                              |
+| `storage.buckets`                          | `add_iam_binding`, `remove_iam_binding`                   | Granular IAM binding management via read-modify-write with etag concurrency                                                                                          |
 
 ---
 

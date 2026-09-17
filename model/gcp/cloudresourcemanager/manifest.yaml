@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/cloudresourcemanager"
-version: "2026.09.09.1"
+version: "2026.09.17.1"
 description: "Google Cloud cloudresourcemanager infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -11,9 +11,11 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: projects
+  - Added: capabilityconfigs
+  - Updated: organizations
 models:
   - capabilities.ts
+  - capabilityconfigs.ts
   - effectivetagbindingcollections.ts
   - effectivetags.ts
   - folders.ts
