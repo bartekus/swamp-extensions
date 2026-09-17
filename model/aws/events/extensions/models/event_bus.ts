@@ -41,6 +41,12 @@ import {
   updateResource,
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
+import {
+  EventBridgeClient,
+  PutEventsCommand,
+  type PutEventsRequestEntry,
+} from "npm:@aws-sdk/client-eventbridge@3.1127.0";
+import { NodeHttpHandler } from "npm:@smithy/node-http-handler@4.9.7";
 
 const TagSchema = z.object({
   Key: z.string(),
@@ -83,6 +89,100 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe("The logging configuration settings for vended logs.").optional(),
 });
+
+function createClient(
+  credentials: AwsCredentials,
+): EventBridgeClient {
+  if (
+    !Deno.env.get("AWS_EC2_METADATA_DISABLED") &&
+    !Deno.env.get("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI") &&
+    !Deno.env.get("AWS_CONTAINER_CREDENTIALS_FULL_URI")
+  ) {
+    Deno.env.set("AWS_EC2_METADATA_DISABLED", "true");
+  }
+
+  const region = credentials.region ??
+    Deno.env.get("AWS_REGION") ??
+    Deno.env.get("AWS_DEFAULT_REGION") ??
+    "us-east-1";
+
+  const config: Record<string, unknown> = {
+    region,
+    requestHandler: new NodeHttpHandler(),
+  };
+
+  if (credentials.accessKeyId && credentials.secretAccessKey) {
+    config.credentials = {
+      accessKeyId: credentials.accessKeyId,
+      secretAccessKey: credentials.secretAccessKey,
+      ...(credentials.sessionToken
+        ? { sessionToken: credentials.sessionToken }
+        : {}),
+    };
+  }
+
+  return new EventBridgeClient(config);
+}
+
+async function putEvents(
+  args: Record<string, unknown>,
+  credentials: AwsCredentials,
+): Promise<Record<string, unknown>> {
+  const client = createClient(credentials);
+  const entries = args.entries as Array<Record<string, unknown>>;
+
+  const sdkEntries: PutEventsRequestEntry[] = entries.map((entry) => ({
+    Source: entry.Source as string,
+    DetailType: entry.DetailType as string,
+    Detail: entry.Detail as string,
+    ...(entry.EventBusName
+      ? { EventBusName: entry.EventBusName as string }
+      : {}),
+    ...(entry.Resources ? { Resources: entry.Resources as string[] } : {}),
+    ...(entry.Time ? { Time: new Date(entry.Time as string) } : {}),
+    ...(entry.TraceHeader ? { TraceHeader: entry.TraceHeader as string } : {}),
+  }));
+
+  const command = new PutEventsCommand({
+    Entries: sdkEntries,
+  });
+
+  try {
+    const response = await client.send(command);
+
+    const resultEntries: Record<string, unknown>[] = [];
+    for (const entry of response.Entries ?? []) {
+      resultEntries.push({
+        EventId: entry.EventId,
+        ...(entry.ErrorCode ? { ErrorCode: entry.ErrorCode } : {}),
+        ...(entry.ErrorMessage ? { ErrorMessage: entry.ErrorMessage } : {}),
+      });
+    }
+
+    return {
+      FailedEntryCount: response.FailedEntryCount ?? 0,
+      Entries: resultEntries,
+    };
+  } catch (err: unknown) {
+    const error = err as Error & { name: string };
+    switch (error.name) {
+      case "AccessDeniedException":
+        throw new Error(
+          `Access denied: ensure the caller has events:PutEvents permission. ${error.message}`,
+        );
+      case "ValidationException":
+        throw new Error(
+          `Invalid request: ${error.message}`,
+        );
+      case "InternalException":
+        throw new Error(
+          `EventBridge internal error: ${error.message}`,
+        );
+      default:
+        throw error;
+    }
+  }
+}
 
 const StateSchema = z.object({
   EventSourceName: z.string().optional(),
@@ -151,7 +251,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Events EventBus. Registered at `@swamp/aws/events/event-bus`. */
 export const model = {
   type: "@swamp/aws/events/event-bus",
-  version: "2026.08.17.2",
+  version: "2026.09.17.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -210,6 +310,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -443,6 +548,49 @@ export const model = {
           dataHandles,
           result: { count: items.length, nextPageToken: nextToken },
         };
+      },
+    },
+    put_events: {
+      description:
+        "Send custom events to this EventBridge event bus via the PutEvents API",
+      arguments: z.object({
+        entries: z.array(z.object({
+          Source: z.string().describe("The source of the event"),
+          DetailType: z.string().describe(
+            "Free-form string used to decide what fields to expect in the event detail",
+          ),
+          Detail: z.string().describe(
+            "A valid JSON object (as a string) containing the event payload",
+          ),
+          EventBusName: z.string().describe(
+            "The name or ARN of the event bus to receive the event — defaults to the bus this model manages",
+          ).optional(),
+          Resources: z.array(z.string()).describe(
+            "AWS resources involved in the event",
+          ).optional(),
+          Time: z.string().describe("The timestamp of the event (ISO 8601)")
+            .optional(),
+          TraceHeader: z.string().describe(
+            "An X-Ray trace header for event tracing",
+          ).optional(),
+        })).describe("The event entries to send (max 10 per call)"),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const credentials = _buildCredentials(context.globalArgs);
+        const mergedArgs = { ...context.globalArgs, ...args };
+        const result = await putEvents(mergedArgs, credentials);
+        const argKeys = Object.keys(args).filter((k) => args[k] !== undefined);
+        const suffix = argKeys.length > 0
+          ? "-" + argKeys.map((k) => String(args[k])).join("-")
+          : "";
+        const instanceName = ("put_events" + suffix).replace(/[\/\\]/g, "_")
+          .replace(/\.\./g, "_").replace(/\0/g, "");
+        const handle = await context.writeResource(
+          "state",
+          instanceName,
+          result,
+        );
+        return { dataHandles: [handle] };
       },
     },
   },

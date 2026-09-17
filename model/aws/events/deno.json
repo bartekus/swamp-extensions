@@ -9,6 +9,8 @@
   "imports": {
     "zod": "npm:zod@4.3.6",
     "@aws-sdk/client-cloudcontrol": "npm:@aws-sdk/client-cloudcontrol@3.1127.0",
-    "fast-json-patch": "npm:fast-json-patch@3.1.1"
+    "fast-json-patch": "npm:fast-json-patch@3.1.1",
+    "@aws-sdk/client-eventbridge": "npm:@aws-sdk/client-eventbridge@3.1127.0",
+    "@smithy/node-http-handler": "npm:@smithy/node-http-handler@4.9.7"
   }
 }

@@ -3,6 +3,7 @@ export { parseEnrichmentSource } from "./parser.ts";
 import { enrichment as rdsDbcluster } from "./rds-dbcluster/config.ts";
 import { enrichment as cfnStackset } from "./cfn-stackset/config.ts";
 import { enrichment as bedrockKnowledgebase } from "./bedrock-knowledgebase/config.ts";
+import { enrichment as eventsEventbus } from "./events-eventbus/config.ts";
 
 export type { AwsEnrichment };
 
@@ -10,6 +11,7 @@ const ENRICHMENTS: AwsEnrichment[] = [
   rdsDbcluster,
   cfnStackset,
   bedrockKnowledgebase,
+  eventsEventbus,
 ];
 
 export function getEnrichment(

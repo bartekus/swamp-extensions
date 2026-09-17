@@ -752,6 +752,7 @@ globalArgs) and method-specific arguments (e.g. `operationId`).
 | ------------------------------- | --------------------------------------------------------------------- | --------------------------------------- |
 | `AWS::CloudFormation::StackSet` | `listInstances`, `listOperations`, `describeOperation`, `detectDrift` | `@aws-sdk/client-cloudformation`        |
 | `AWS::Bedrock::KnowledgeBase`   | `retrieve`                                                            | `@aws-sdk/client-bedrock-agent-runtime` |
+| `AWS::Events::EventBus`         | `put_events`                                                          | `@aws-sdk/client-eventbridge`           |
 
 ---
 
