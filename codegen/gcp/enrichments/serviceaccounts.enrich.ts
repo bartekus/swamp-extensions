@@ -211,4 +211,119 @@ export const iamBindingMethods = {
       return { result };
     },
   },
+  manage_account: {
+    description:
+      "create or adopt a service account by deterministic email, returning state with immutable uniqueId — no key creation or IAM grants",
+    arguments: z.object({}),
+    execute: async (
+      _args: Record<string, never>,
+      context: {
+        globalArgs: Record<string, unknown>;
+        writeResource: (
+          type: string,
+          name: string,
+          data: unknown,
+        ) => Promise<unknown>;
+      },
+    ) => {
+      const g = context.globalArgs;
+      const baseUrl = g["apiEndpoint"]?.toString() ??
+        Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+      const credentials = _buildGcpCredentials(g);
+      const projectId = await getProjectId(credentials);
+
+      const accountId = g["accountId"]?.toString();
+      if (!accountId) {
+        throw new Error(
+          "accountId is required: 6-30 character identifier used to derive the service account email",
+        );
+      }
+
+      const email = `${accountId}@${projectId}.iam.gserviceaccount.com`;
+      const resourceName = `projects/${projectId}/serviceAccounts/${email}`;
+
+      const getResp = await request(
+        "GET",
+        `${baseUrl}v1/${resourceName}`,
+        undefined,
+        credentials,
+      );
+
+      let result: Record<string, unknown>;
+
+      if (getResp.ok) {
+        result = await getResp.json();
+      } else if (getResp.status === 404) {
+        await getResp.text();
+
+        const createBody: Record<string, unknown> = { accountId };
+        const sa: Record<string, unknown> = {};
+        if (g["displayName"] !== undefined) {
+          sa["displayName"] = g["displayName"];
+        }
+        if (g["description"] !== undefined) {
+          sa["description"] = g["description"];
+        }
+        if (Object.keys(sa).length > 0) {
+          createBody["serviceAccount"] = sa;
+        }
+
+        const createResp = await request(
+          "POST",
+          `${baseUrl}v1/projects/${projectId}/serviceAccounts`,
+          createBody,
+          credentials,
+        );
+
+        if (createResp.status === 409) {
+          await createResp.text();
+          const reReadResp = await request(
+            "GET",
+            `${baseUrl}v1/${resourceName}`,
+            undefined,
+            credentials,
+          );
+          if (!reReadResp.ok) {
+            const body = await reReadResp.text();
+            throw new Error(
+              `Re-read after 409 failed (${reReadResp.status}): ${body}`,
+            );
+          }
+          result = await reReadResp.json();
+        } else if (!createResp.ok) {
+          const body = await createResp.text();
+          throw new Error(`Create failed (${createResp.status}): ${body}`);
+        } else {
+          result = await createResp.json();
+        }
+      } else if (getResp.status === 403) {
+        let body: string;
+        try {
+          body = await getResp.text();
+        } catch {
+          body = "(could not read response body)";
+        }
+        throw new Error(
+          `Permission denied reading service account ${email} (403): ${body}. ` +
+            "This is NOT a 'not found' — check IAM permissions on the project.",
+        );
+      } else {
+        const body = await getResp.text();
+        throw new Error(
+          `Unexpected error reading service account ${email} (${getResp.status}): ${body}`,
+        );
+      }
+
+      const instanceName = resourceName
+        .replace(/[\/\\]/g, "_")
+        .replace(/\.\./g, "_")
+        .replace(/\0/g, "");
+      const handle = await context.writeResource(
+        "state",
+        instanceName,
+        result,
+      );
+      return { dataHandles: [handle] };
+    },
+  },
 };

@@ -1319,11 +1319,11 @@ The GCP extension model generator has four insertion points for enrichment:
 
 ### Current enrichments
 
-| Resource                           | Methods                                 | Description                                                                         |
-| ---------------------------------- | --------------------------------------- | ----------------------------------------------------------------------------------- |
-| `cloudidentity.groups.memberships` | `set_members`                           | Authoritative group membership reconciliation — add missing, remove strays          |
-| `iam.serviceAccounts`              | `add_iam_binding`, `remove_iam_binding` | Granular IAM binding management on service accounts via read-modify-write with etag |
-| `storage.buckets`                  | `add_iam_binding`, `remove_iam_binding` | Granular IAM binding management via read-modify-write with etag concurrency         |
+| Resource                           | Methods                                                   | Description                                                                                                                                                          |
+| ---------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cloudidentity.groups.memberships` | `set_members`                                             | Authoritative group membership reconciliation — add missing, remove strays                                                                                           |
+| `iam.serviceAccounts`              | `add_iam_binding`, `remove_iam_binding`, `manage_account` | Granular IAM binding management on service accounts via read-modify-write with etag; deterministic create-or-adopt lifecycle by email with safe 404/409/403 handling |
+| `storage.buckets`                  | `add_iam_binding`, `remove_iam_binding`                   | Granular IAM binding management via read-modify-write with etag concurrency                                                                                          |
 
 ---
 
