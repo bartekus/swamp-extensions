@@ -134,12 +134,15 @@ const GlobalArgsSchema = z.object({
           "HYPERDISK_EXTREME",
           "HYPERDISK_ML",
           "HYPERDISK_THROUGHPUT",
-        ]).describe("Optional. Disk type.").optional(),
+        ]).describe("Optional. Deprecated: Use type instead.").optional(),
         provisionedIops: z.string().describe(
           "Optional. Indicates how many IOPS to provision for the attached disk. This sets the number of I/O operations per second that the disk can handle. See https://cloud.google.com/compute/docs/disks/hyperdisks#hyperdisk-features",
         ).optional(),
         provisionedThroughput: z.string().describe(
           "Optional. Indicates how much throughput to provision for the attached disk. This sets the number of throughput mb per second that the disk can handle. See https://cloud.google.com/compute/docs/disks/hyperdisks#hyperdisk-features",
+        ).optional(),
+        type: z.string().describe(
+          "Optional. Attached disk type. Currently only supports Hyperdisks. See https://cloud.google.com/compute/docs/disks/hyperdisks. Note: Hyperdisk Balanced High Availability is not supported.Allowed values are: hyperdisk-balanced hyperdisk-extreme hyperdisk-ml hyperdisk-throughput",
         ).optional(),
       })).describe(
         "Optional. A list of attached disk configs for a group of VM instances.",
@@ -325,6 +328,7 @@ const StateSchema = z.object({
         diskType: z.string(),
         provisionedIops: z.string(),
         provisionedThroughput: z.string(),
+        type: z.string(),
       })),
       bootDiskProvisionedIops: z.string(),
       bootDiskProvisionedThroughput: z.string(),
@@ -419,12 +423,15 @@ const InputsSchema = z.object({
           "HYPERDISK_EXTREME",
           "HYPERDISK_ML",
           "HYPERDISK_THROUGHPUT",
-        ]).describe("Optional. Disk type.").optional(),
+        ]).describe("Optional. Deprecated: Use type instead.").optional(),
         provisionedIops: z.string().describe(
           "Optional. Indicates how many IOPS to provision for the attached disk. This sets the number of I/O operations per second that the disk can handle. See https://cloud.google.com/compute/docs/disks/hyperdisks#hyperdisk-features",
         ).optional(),
         provisionedThroughput: z.string().describe(
           "Optional. Indicates how much throughput to provision for the attached disk. This sets the number of throughput mb per second that the disk can handle. See https://cloud.google.com/compute/docs/disks/hyperdisks#hyperdisk-features",
+        ).optional(),
+        type: z.string().describe(
+          "Optional. Attached disk type. Currently only supports Hyperdisks. See https://cloud.google.com/compute/docs/disks/hyperdisks. Note: Hyperdisk Balanced High Availability is not supported.Allowed values are: hyperdisk-balanced hyperdisk-extreme hyperdisk-ml hyperdisk-throughput",
         ).optional(),
       })).describe(
         "Optional. A list of attached disk configs for a group of VM instances.",
@@ -622,7 +629,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataproc Clusters.NodeGroups. Registered at `@swamp/gcp/dataproc/clusters-nodegroups`. */
 export const model = {
   type: "@swamp/gcp/dataproc/clusters-nodegroups",
-  version: "2026.09.16.1",
+  version: "2026.09.17.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -816,6 +823,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.16.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

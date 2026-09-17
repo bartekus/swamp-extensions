@@ -127,6 +127,7 @@ const GlobalArgsSchema = z.object({
     "GatewayLoadBalancer",
     "ServiceNetwork",
     "Resource",
+    "Tunnel",
   ]).describe("The type of endpoint. Default: Gateway").optional(),
   Tags: z.array(TagSchema).describe("The tags to associate with the endpoint.")
     .optional(),
@@ -227,6 +228,7 @@ const InputsSchema = z.object({
     "GatewayLoadBalancer",
     "ServiceNetwork",
     "Resource",
+    "Tunnel",
   ]).describe("The type of endpoint. Default: Gateway").optional(),
   Tags: z.array(TagSchema).describe("The tags to associate with the endpoint.")
     .optional(),
@@ -251,7 +253,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 VPCEndpoint. Registered at `@swamp/aws/ec2/vpcendpoint`. */
 export const model = {
   type: "@swamp/aws/ec2/vpcendpoint",
-  version: "2026.08.17.2",
+  version: "2026.09.17.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -310,6 +312,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

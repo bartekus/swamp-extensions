@@ -217,9 +217,9 @@ const StateSchema = z.object({
   AdditionalAuthenticationProviders: z.array(
     AdditionalAuthenticationProviderSchema,
   ).optional(),
-  ApiId: z.string(),
+  ApiId: z.string().optional(),
   ApiType: z.string().optional(),
-  Arn: z.string().optional(),
+  Arn: z.string(),
   AuthenticationType: z.string().optional(),
   EnhancedMetricsConfig: z.object({
     OperationLevelMetricsConfig: z.string(),
@@ -388,7 +388,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppSync GraphQLApi. Registered at `@swamp/aws/appsync/graph-qlapi`. */
 export const model = {
   type: "@swamp/aws/appsync/graph-qlapi",
-  version: "2026.08.17.2",
+  version: "2026.09.17.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -447,6 +447,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -537,7 +542,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const identifier = existing.ApiId?.toString();
+        const identifier = existing.Arn?.toString();
         if (!identifier) {
           throw new Error("No identifier found in existing state");
         }
@@ -615,7 +620,7 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const identifier = existing.ApiId?.toString();
+        const identifier = existing.Arn?.toString();
         if (!identifier) {
           throw new Error("No identifier found in existing state");
         }
@@ -671,7 +676,7 @@ export const model = {
         for (let i = 0; i < items.length; i++) {
           const item = items[i];
           const instanceName =
-            (item.properties?.ApiId?.toString() ?? item.identifier).replace(
+            (item.properties?.Arn?.toString() ?? item.identifier).replace(
               /[\/\\]/g,
               "_",
             ).replace(/\.\./g, "_").replace(/\0/g, "");

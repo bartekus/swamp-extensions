@@ -50,6 +50,30 @@ const TagSchema = z.object({
   ).describe("The value for an AWS resource tag."),
 });
 
+const GoogleOidcConfigSchema = z.object({
+  ProjectName: z.string().min(6).max(30).regex(
+    new RegExp("^[a-z][a-z0-9-]{4,28}[a-z0-9]$"),
+  ).describe("The human-readable Google Cloud project name."),
+  ProjectNumber: z.string().min(1).max(20).regex(new RegExp("^[0-9]+$"))
+    .describe("The numeric Google Cloud project ID, as a string."),
+  IdentityPoolName: z.string().min(4).max(32).regex(
+    new RegExp("^(?!gcp-)[a-z][a-z0-9-]{2,30}[a-z0-9]$"),
+  ).describe(
+    "The name of the Google Cloud workload identity pool that DataSync federates with.",
+  ),
+  IdentityProviderName: z.string().min(4).max(32).regex(
+    new RegExp("^(?!gcp-)[a-z][a-z0-9-]{2,30}[a-z0-9]$"),
+  ).describe(
+    "The name of the OIDC identity provider configured in the Google Cloud workload identity pool.",
+  ),
+});
+
+const ObjectStorageExternalIdentityConfigSchema = z.object({
+  GoogleOidc: GoogleOidcConfigSchema.describe(
+    "Specifies the Google Cloud workload identity federation configuration that DataSync uses to obtain an access token for your Google Cloud Storage bucket.",
+  ).optional(),
+});
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -132,6 +156,20 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Specifies configuration information for a customer-managed secret, such as an authentication token or set of credentials that DataSync uses to access a specific transfer location, and an IAM role that DataSync can assume and access the customer-managed secret.",
   ).optional(),
+  FederatedIdentity: z.object({
+    AwsIamRole: z.string().max(2048).regex(
+      new RegExp(
+        "^(arn:(aws|aws-cn|aws-us-gov|aws-eusc|aws-iso|aws-iso-b):iam::[0-9]{12}:role/.*|)$",
+      ),
+    ).describe(
+      "Specifies the ARN of the AWS Identity and Access Management (IAM) role that DataSync assumes to mint the OIDC token used to authenticate with the identity provider.",
+    ).optional(),
+    ExternalIdentity: ObjectStorageExternalIdentityConfigSchema.describe(
+      "Specifies the external (non-AWS) identity provider that DataSync federates with to access your object storage location.",
+    ).optional(),
+  }).describe(
+    "Specifies the identity federation configuration that DataSync uses to access your object storage location using an OpenID Connect (OIDC) token.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -157,6 +195,10 @@ const StateSchema = z.object({
   }).optional(),
   ManagedSecretConfig: z.object({
     SecretArn: z.string(),
+  }).optional(),
+  FederatedIdentity: z.object({
+    AwsIamRole: z.string(),
+    ExternalIdentity: ObjectStorageExternalIdentityConfigSchema,
   }).optional(),
 }).passthrough();
 
@@ -234,6 +276,20 @@ const InputsSchema = z.object({
   }).describe(
     "Specifies configuration information for a customer-managed secret, such as an authentication token or set of credentials that DataSync uses to access a specific transfer location, and an IAM role that DataSync can assume and access the customer-managed secret.",
   ).optional(),
+  FederatedIdentity: z.object({
+    AwsIamRole: z.string().max(2048).regex(
+      new RegExp(
+        "^(arn:(aws|aws-cn|aws-us-gov|aws-eusc|aws-iso|aws-iso-b):iam::[0-9]{12}:role/.*|)$",
+      ),
+    ).describe(
+      "Specifies the ARN of the AWS Identity and Access Management (IAM) role that DataSync assumes to mint the OIDC token used to authenticate with the identity provider.",
+    ).optional(),
+    ExternalIdentity: ObjectStorageExternalIdentityConfigSchema.describe(
+      "Specifies the external (non-AWS) identity provider that DataSync federates with to access your object storage location.",
+    ).optional(),
+  }).describe(
+    "Specifies the identity federation configuration that DataSync uses to access your object storage location using an OpenID Connect (OIDC) token.",
+  ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -255,7 +311,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataSync LocationObjectStorage. Registered at `@swamp/aws/datasync/location-object-storage`. */
 export const model = {
   type: "@swamp/aws/datasync/location-object-storage",
-  version: "2026.08.17.1",
+  version: "2026.09.17.1",
+  upgrades: [
+    {
+      toVersion: "2026.09.17.1",
+      description: "Added: FederatedIdentity",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

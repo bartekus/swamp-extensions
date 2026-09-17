@@ -14,7 +14,7 @@ the live state in GCP. Available methods:
 - **sync** — refresh all resource properties from the API
 
 Use
-`swamp model type describe @swamp/gcp/marketingplatformadmin/analyticsaccountlinks`
+`swamp model type describe @swamp/gcp/marketingplatformadmin/adminaccessbindings`
 to see the full list of configurable properties and available methods for this
 model.
 
@@ -67,17 +67,17 @@ gcloud config set project my-project
 ## Usage
 
 ```bash
-# Create a new analyticsaccountlinks model
-swamp model create @swamp/gcp/marketingplatformadmin/analyticsaccountlinks my-analyticsaccountlinks
+# Create a new adminaccessbindings model
+swamp model create @swamp/gcp/marketingplatformadmin/adminaccessbindings my-adminaccessbindings
 
 # Edit the model to configure its properties
-swamp model edit my-analyticsaccountlinks
+swamp model edit my-adminaccessbindings
 
 # Create the resource in GCP
-swamp model method run my-analyticsaccountlinks create
+swamp model method run my-adminaccessbindings create
 
 # Sync current state from GCP
-swamp model method run my-analyticsaccountlinks sync
+swamp model method run my-adminaccessbindings sync
 ```
 
 ## License

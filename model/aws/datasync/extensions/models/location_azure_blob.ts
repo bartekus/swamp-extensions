@@ -50,6 +50,23 @@ const TagSchema = z.object({
   ).describe("The value for an AWS resource tag."),
 });
 
+const AzureOidcConfigSchema = z.object({
+  TenantId: z.string().min(36).max(36).regex(
+    new RegExp(
+      "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+    ),
+  ).describe(
+    "Specifies the Microsoft Entra (Azure AD) tenant ID that the identity belongs to.",
+  ),
+  ClientId: z.string().min(36).max(36).regex(
+    new RegExp(
+      "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+    ),
+  ).describe(
+    "Specifies the client ID of the Microsoft Entra (Azure AD) identity that DataSync uses to obtain an access token.",
+  ),
+});
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -75,7 +92,7 @@ const GlobalArgsSchema = z.object({
   ).describe(
     "Specifies the Amazon Resource Name (ARN) of the DataSync agent that can connect with your Azure Blob Storage container. If you are setting up an agentless cross-cloud transfer, you do not need to specify a value for this parameter.",
   ).optional(),
-  AzureBlobAuthenticationType: z.enum(["SAS", "NONE"]).describe(
+  AzureBlobAuthenticationType: z.enum(["SAS", "NONE", "OIDC"]).describe(
     "The specific authentication type that you want DataSync to use to access your Azure Blob Container.",
   ),
   AzureBlobSasConfiguration: z.object({
@@ -128,6 +145,20 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Specifies configuration information for a customer-managed secret, such as an authentication token or set of credentials that DataSync uses to access a specific transfer location, and an IAM role that DataSync can assume and access the customer-managed secret.",
   ).optional(),
+  FederatedIdentity: z.object({
+    AwsIamRole: z.string().max(2048).regex(
+      new RegExp(
+        "^(arn:(aws|aws-cn|aws-us-gov|aws-eusc|aws-iso|aws-iso-b):iam::[0-9]{12}:role/.*|)$",
+      ),
+    ).describe(
+      "Specifies the ARN of the AWS Identity and Access Management (IAM) role that DataSync assumes to mint the OIDC token used to authenticate with the identity provider.",
+    ).optional(),
+    AzureOidc: AzureOidcConfigSchema.describe(
+      "Specifies the Microsoft Entra (Azure AD) identity that DataSync federates with to obtain an access token for your Azure Blob Storage container.",
+    ).optional(),
+  }).describe(
+    "Specifies the identity federation configuration that DataSync uses to access your Azure Blob Storage container using an OpenID Connect (OIDC) token.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -154,6 +185,10 @@ const StateSchema = z.object({
   ManagedSecretConfig: z.object({
     SecretArn: z.string(),
   }).optional(),
+  FederatedIdentity: z.object({
+    AwsIamRole: z.string(),
+    AzureOidc: AzureOidcConfigSchema,
+  }).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -173,7 +208,7 @@ const InputsSchema = z.object({
   ).describe(
     "Specifies the Amazon Resource Name (ARN) of the DataSync agent that can connect with your Azure Blob Storage container. If you are setting up an agentless cross-cloud transfer, you do not need to specify a value for this parameter.",
   ).optional(),
-  AzureBlobAuthenticationType: z.enum(["SAS", "NONE"]).describe(
+  AzureBlobAuthenticationType: z.enum(["SAS", "NONE", "OIDC"]).describe(
     "The specific authentication type that you want DataSync to use to access your Azure Blob Container.",
   ).optional(),
   AzureBlobSasConfiguration: z.object({
@@ -226,6 +261,20 @@ const InputsSchema = z.object({
   }).describe(
     "Specifies configuration information for a customer-managed secret, such as an authentication token or set of credentials that DataSync uses to access a specific transfer location, and an IAM role that DataSync can assume and access the customer-managed secret.",
   ).optional(),
+  FederatedIdentity: z.object({
+    AwsIamRole: z.string().max(2048).regex(
+      new RegExp(
+        "^(arn:(aws|aws-cn|aws-us-gov|aws-eusc|aws-iso|aws-iso-b):iam::[0-9]{12}:role/.*|)$",
+      ),
+    ).describe(
+      "Specifies the ARN of the AWS Identity and Access Management (IAM) role that DataSync assumes to mint the OIDC token used to authenticate with the identity provider.",
+    ).optional(),
+    AzureOidc: AzureOidcConfigSchema.describe(
+      "Specifies the Microsoft Entra (Azure AD) identity that DataSync federates with to obtain an access token for your Azure Blob Storage container.",
+    ).optional(),
+  }).describe(
+    "Specifies the identity federation configuration that DataSync uses to access your Azure Blob Storage container using an OpenID Connect (OIDC) token.",
+  ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -247,7 +296,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataSync LocationAzureBlob. Registered at `@swamp/aws/datasync/location-azure-blob`. */
 export const model = {
   type: "@swamp/aws/datasync/location-azure-blob",
-  version: "2026.08.17.1",
+  version: "2026.09.17.1",
+  upgrades: [
+    {
+      toVersion: "2026.09.17.1",
+      description: "Added: FederatedIdentity",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

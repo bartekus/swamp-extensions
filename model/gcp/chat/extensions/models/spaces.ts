@@ -216,6 +216,15 @@ const GlobalArgsSchema = z.object({
         ).optional(),
       }).describe("Optional. Access permission setting for joining the space.")
         .optional(),
+      viewSpaceMembershipSetting: z.object({
+        principals: z.array(z.object({
+          audience: z.unknown().describe("An audience.").optional(),
+        })).describe(
+          "Optional. Unordered list. Allowed principals for this permission.",
+        ).optional(),
+      }).describe(
+        "Optional. Access permission setting for viewing space membership. Must be specified together with `PermissionSettings.view_space_membership` in the update mask and request body when updating who can view space membership. When granting view access to a target audience, you must also grant `PermissionSettings.view_space_membership` to all members in the same request. To remove an existing target audience (for example, to restrict view access to space managers or assistant managers only), specify an empty `AccessPermissionSetting` (with no `principals`).",
+      ).optional(),
     }).describe(
       "Optional. Access permission settings for the space. To set the target audience when creating a space, specify the `accessSettings.audience` field in your request.",
     ).optional(),
@@ -336,6 +345,19 @@ const GlobalArgsSchema = z.object({
         "Optional. Whether basic space members (`ROLE_MEMBER`) have this permission.",
       ).optional(),
     }).describe("Optional. Setting for using @all in a space.").optional(),
+    viewSpaceMembership: z.object({
+      assistantManagersAllowed: z.boolean().describe(
+        "Optional. Whether space managers `ROLE_ASSISTANT_MANAGER`) have this permission.",
+      ).optional(),
+      managersAllowed: z.boolean().describe(
+        "Optional. Whether space owners (`ROLE_MANAGER`) have this permission.",
+      ).optional(),
+      membersAllowed: z.boolean().describe(
+        "Optional. Whether basic space members (`ROLE_MEMBER`) have this permission.",
+      ).optional(),
+    }).describe(
+      "Optional. Setting for viewing space membership. Must be specified together with `AccessPermissionSettings.view_space_membership_setting` in the update mask and request body when updating who can view space membership. When restricting view access to specific roles (for example, space managers or assistant managers only), specify the desired role permissions here and provide an empty `AccessPermissionSettings.view_space_membership_setting` in the same request. If a target audience is configured in `AccessPermissionSettings.view_space_membership_setting`, this setting must be granted to all members.",
+    ).optional(),
   }).describe(
     "Optional. Space permission settings for existing spaces. Input for updating exact space permission settings, where existing permission settings are replaced. Output lists current permission settings. Reading and updating permission settings supports: - [App authentication](https://developers.google.com/workspace/chat/authenticate-authorize-chat-app) with [administrator approval](https://support.google.com/a?p=chat-app-auth) with the `chat.app.spaces` scope. Only populated and settable when the Chat app created the space. - [User authentication](https://developers.google.com/workspace/chat/authenticate-authorize-chat-user)",
   ).optional(),
@@ -383,6 +405,11 @@ const StateSchema = z.object({
         })),
       }),
       joinSpaceSetting: z.object({
+        principals: z.array(z.object({
+          audience: z.unknown(),
+        })),
+      }),
+      viewSpaceMembershipSetting: z.object({
         principals: z.array(z.object({
           audience: z.unknown(),
         })),
@@ -445,6 +472,11 @@ const StateSchema = z.object({
       managersAllowed: z.boolean(),
       membersAllowed: z.boolean(),
     }),
+    viewSpaceMembership: z.object({
+      assistantManagersAllowed: z.boolean(),
+      managersAllowed: z.boolean(),
+      membersAllowed: z.boolean(),
+    }),
   }).optional(),
   predefinedPermissionSettings: z.string().optional(),
   singleUserBotDm: z.boolean().optional(),
@@ -488,6 +520,15 @@ const InputsSchema = z.object({
         ).optional(),
       }).describe("Optional. Access permission setting for joining the space.")
         .optional(),
+      viewSpaceMembershipSetting: z.object({
+        principals: z.array(z.object({
+          audience: z.unknown().describe("An audience.").optional(),
+        })).describe(
+          "Optional. Unordered list. Allowed principals for this permission.",
+        ).optional(),
+      }).describe(
+        "Optional. Access permission setting for viewing space membership. Must be specified together with `PermissionSettings.view_space_membership` in the update mask and request body when updating who can view space membership. When granting view access to a target audience, you must also grant `PermissionSettings.view_space_membership` to all members in the same request. To remove an existing target audience (for example, to restrict view access to space managers or assistant managers only), specify an empty `AccessPermissionSetting` (with no `principals`).",
+      ).optional(),
     }).describe(
       "Optional. Access permission settings for the space. To set the target audience when creating a space, specify the `accessSettings.audience` field in your request.",
     ).optional(),
@@ -608,6 +649,19 @@ const InputsSchema = z.object({
         "Optional. Whether basic space members (`ROLE_MEMBER`) have this permission.",
       ).optional(),
     }).describe("Optional. Setting for using @all in a space.").optional(),
+    viewSpaceMembership: z.object({
+      assistantManagersAllowed: z.boolean().describe(
+        "Optional. Whether space managers `ROLE_ASSISTANT_MANAGER`) have this permission.",
+      ).optional(),
+      managersAllowed: z.boolean().describe(
+        "Optional. Whether space owners (`ROLE_MANAGER`) have this permission.",
+      ).optional(),
+      membersAllowed: z.boolean().describe(
+        "Optional. Whether basic space members (`ROLE_MEMBER`) have this permission.",
+      ).optional(),
+    }).describe(
+      "Optional. Setting for viewing space membership. Must be specified together with `AccessPermissionSettings.view_space_membership_setting` in the update mask and request body when updating who can view space membership. When restricting view access to specific roles (for example, space managers or assistant managers only), specify the desired role permissions here and provide an empty `AccessPermissionSettings.view_space_membership_setting` in the same request. If a target audience is configured in `AccessPermissionSettings.view_space_membership_setting`, this setting must be granted to all members.",
+    ).optional(),
   }).describe(
     "Optional. Space permission settings for existing spaces. Input for updating exact space permission settings, where existing permission settings are replaced. Output lists current permission settings. Reading and updating permission settings supports: - [App authentication](https://developers.google.com/workspace/chat/authenticate-authorize-chat-app) with [administrator approval](https://support.google.com/a?p=chat-app-auth) with the `chat.app.spaces` scope. Only populated and settable when the Chat app created the space. - [User authentication](https://developers.google.com/workspace/chat/authenticate-authorize-chat-user)",
   ).optional(),
@@ -672,7 +726,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Chat Spaces. Registered at `@swamp/gcp/chat/spaces`. */
 export const model = {
   type: "@swamp/gcp/chat/spaces",
-  version: "2026.09.07.1",
+  version: "2026.09.17.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -855,6 +909,11 @@ export const model = {
     {
       toVersion: "2026.09.07.1",
       description: "Added: useAdminAccess",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.17.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

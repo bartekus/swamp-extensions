@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/compute"
-version: "2026.09.11.1"
+version: "2026.09.17.1"
 description: "Google Cloud compute infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -11,7 +11,8 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: regioncommitments
+  - Added: globalfrontendsettings, imageviews, managedrulesets
+  - Updated: firewallpolicies, futurereservations, instancegroupmanagers, networkfirewallpolicies, organizationsecuritypolicies, regioninstancegroupmanagers, regionnetworkfirewallpolicies, regionsecuritypolicies, securitypolicies
 models:
   - acceleratortypes.ts
   - addresses.ts
@@ -28,6 +29,7 @@ models:
   - futurereservations.ts
   - globaladdresses.ts
   - globalforwardingrules.ts
+  - globalfrontendsettings.ts
   - globalnetworkendpointgroups.ts
   - globalpublicdelegatedprefixes.ts
   - globalvmextensionpolicies.ts
@@ -37,6 +39,7 @@ models:
   - httpshealthchecks.ts
   - imagefamilyviews.ts
   - images.ts
+  - imageviews.ts
   - instancegroupmanagerresizerequests.ts
   - instancegroupmanagers.ts
   - instancegroups.ts
@@ -55,6 +58,7 @@ models:
   - licenses.ts
   - machineimages.ts
   - machinetypes.ts
+  - managedrulesets.ts
   - networkattachments.ts
   - networkedgesecurityservices.ts
   - networkendpointgroups.ts

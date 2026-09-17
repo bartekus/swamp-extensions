@@ -74,6 +74,10 @@ const ManagedVpcResourceSchema = z.object({
     z.string().regex(new RegExp("^sg-(([0-9a-z]{8})|([0-9a-z]{17}))$")),
   ).optional(),
   RoutingDomain: z.string().min(3).max(255).optional(),
+  Tags: z.record(
+    z.string(),
+    z.string().min(0).max(256).regex(new RegExp("^[a-zA-Z0-9\\s._:/=+@-]*$")),
+  ).optional(),
 });
 
 const CustomJWTAuthorizerConfigurationSchema = z.object({
@@ -316,7 +320,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore Gateway. Registered at `@swamp/aws/bedrockagentcore/gateway`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/gateway",
-  version: "2026.08.26.1",
+  version: "2026.09.17.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -404,6 +408,11 @@ export const model = {
     {
       toVersion: "2026.08.26.1",
       description: "Added: WafConfiguration",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.17.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

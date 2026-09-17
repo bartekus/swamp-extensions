@@ -1117,6 +1117,9 @@ const StateSchema = z.object({
         joinSpaceSetting: z.object({
           principals: z.array(z.unknown()),
         }),
+        viewSpaceMembershipSetting: z.object({
+          principals: z.array(z.unknown()),
+        }),
       }),
       accessState: z.string(),
       audience: z.string(),
@@ -1171,6 +1174,11 @@ const StateSchema = z.object({
         membersAllowed: z.boolean(),
       }),
       useAtMentionAll: z.object({
+        assistantManagersAllowed: z.boolean(),
+        managersAllowed: z.boolean(),
+        membersAllowed: z.boolean(),
+      }),
+      viewSpaceMembership: z.object({
         assistantManagersAllowed: z.boolean(),
         managersAllowed: z.boolean(),
         membersAllowed: z.boolean(),
@@ -1774,7 +1782,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Chat Spaces.Messages. Registered at `@swamp/gcp/chat/spaces-messages`. */
 export const model = {
   type: "@swamp/gcp/chat/spaces-messages",
-  version: "2026.09.07.1",
+  version: "2026.09.17.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1961,6 +1969,11 @@ export const model = {
     {
       toVersion: "2026.09.07.1",
       description: "Added: allowMissing",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.17.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

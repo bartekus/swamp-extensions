@@ -151,6 +151,7 @@ const StateSchema = z.object({
         })),
         createTime: z.string(),
         dryRun: z.boolean(),
+        endTime: z.string(),
         service: z.string(),
       }),
       reportPath: z.string(),
@@ -221,7 +222,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataproc Metastore Services.MigrationExecutions. Registered at `@swamp/gcp/metastore/services-migrationexecutions`. */
 export const model = {
   type: "@swamp/gcp/metastore/services-migrationexecutions",
-  version: "2026.08.29.1",
+  version: "2026.09.17.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -345,6 +346,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

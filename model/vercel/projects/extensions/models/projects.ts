@@ -998,6 +998,7 @@ const ResourceSchema = z.object({
     deploymentPrivate: z.array(z.string()).optional(),
     deploymentProductionGit: z.array(z.string()).optional(),
     deploymentPromote: z.array(z.string()).optional(),
+    deploymentProtectionException: z.array(z.string()).optional(),
     deploymentRollback: z.array(z.string()).optional(),
     deploymentV0: z.array(z.string()).optional(),
     domain: z.array(z.string()).optional(),
@@ -1020,6 +1021,7 @@ const ResourceSchema = z.object({
     event: z.array(z.string()).optional(),
     fileUpload: z.array(z.string()).optional(),
     flagsExplorerSubscription: z.array(z.string()).optional(),
+    gitCredentialGrant: z.array(z.string()).optional(),
     gitRepository: z.array(z.string()).optional(),
     imageOptimizationNewPrice: z.array(z.string()).optional(),
     integration: z.array(z.string()).optional(),
@@ -1149,6 +1151,7 @@ const ResourceSchema = z.object({
     remoteCaching: z.array(z.string()).optional(),
     repository: z.array(z.string()).optional(),
     samlConfig: z.array(z.string()).optional(),
+    schedule: z.array(z.string()).optional(),
     seawallConfig: z.array(z.string()).optional(),
     secret: z.array(z.string()).optional(),
     securityConfig: z.array(z.string()).optional(),
@@ -1719,7 +1722,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Projects. Registered at `@swamp/vercel/projects/projects`. */
 export const model = {
   type: "@swamp/vercel/projects/projects",
-  version: "2026.09.16.1",
+  version: "2026.09.17.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -1838,6 +1841,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.16.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

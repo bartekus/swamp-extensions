@@ -439,6 +439,13 @@ const GlobalArgsSchema = z.object({
     "AUTOFILL_USER_CHOICE",
     "AUTOFILL_DISABLED",
   ]).describe("Optional. The policy for the autofill service.").optional(),
+  backupService: z.enum([
+    "BACKUP_SERVICE_UNSPECIFIED",
+    "BACKUP_SERVICE_DISABLED",
+    "BACKUP_SERVICE_USER_CHOICE",
+  ]).describe(
+    "Optional. Controls whether the backup service is disabled. Supported only on fully managed devices running Android 8 and above.",
+  ).optional(),
   bluetoothConfigDisabled: z.boolean().describe(
     "Whether configuring bluetooth is disabled.",
   ).optional(),
@@ -1615,6 +1622,7 @@ const StateSchema = z.object({
   autoDateAndTimeZone: z.string().optional(),
   autoTimeRequired: z.boolean().optional(),
   autofillPolicy: z.string().optional(),
+  backupService: z.string().optional(),
   blockApplicationsEnabled: z.boolean().optional(),
   bluetoothConfigDisabled: z.boolean().optional(),
   bluetoothContactSharingDisabled: z.boolean().optional(),
@@ -2252,6 +2260,13 @@ const InputsSchema = z.object({
     "AUTOFILL_USER_CHOICE",
     "AUTOFILL_DISABLED",
   ]).describe("Optional. The policy for the autofill service.").optional(),
+  backupService: z.enum([
+    "BACKUP_SERVICE_UNSPECIFIED",
+    "BACKUP_SERVICE_DISABLED",
+    "BACKUP_SERVICE_USER_CHOICE",
+  ]).describe(
+    "Optional. Controls whether the backup service is disabled. Supported only on fully managed devices running Android 8 and above.",
+  ).optional(),
   bluetoothConfigDisabled: z.boolean().describe(
     "Whether configuring bluetooth is disabled.",
   ).optional(),
@@ -3385,7 +3400,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Android Management Enterprises.Policies. Registered at `@swamp/gcp/androidmanagement/enterprises-policies`. */
 export const model = {
   type: "@swamp/gcp/androidmanagement/enterprises-policies",
-  version: "2026.08.27.1",
+  version: "2026.09.17.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3552,6 +3567,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.17.1",
+      description: "Added: backupService",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -3673,6 +3693,9 @@ export const model = {
         }
         if (g["autofillPolicy"] !== undefined) {
           body["autofillPolicy"] = g["autofillPolicy"];
+        }
+        if (g["backupService"] !== undefined) {
+          body["backupService"] = g["backupService"];
         }
         if (g["bluetoothConfigDisabled"] !== undefined) {
           body["bluetoothConfigDisabled"] = g["bluetoothConfigDisabled"];

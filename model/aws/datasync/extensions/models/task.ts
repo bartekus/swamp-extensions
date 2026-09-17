@@ -42,6 +42,26 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
+const TaskReportConfigDestinationS3Schema = z.object({
+  Subdirectory: z.string().max(4096).regex(
+    new RegExp("^[a-zA-Z0-9_\\-\\+\\./\\(\\)\\p{Zs}]*$", "u"),
+  ).describe("Specifies a bucket prefix for your report.").optional(),
+  S3BucketArn: z.string().max(156).regex(
+    new RegExp(
+      "^arn:(aws|aws-cn|aws-us-gov|aws-eusc|aws-iso|aws-iso-b):(s3|s3-outposts):[a-z\\-0-9]*:[0-9]*:.*$",
+    ),
+  ).describe(
+    "Specifies the ARN of the S3 bucket where Datasync uploads your report.",
+  ).optional(),
+  BucketAccessRoleArn: z.string().max(2048).regex(
+    new RegExp(
+      "^arn:(aws|aws-cn|aws-us-gov|aws-eusc|aws-iso|aws-iso-b):iam::[0-9]{12}:role/.*$",
+    ),
+  ).describe(
+    "Specifies the Amazon Resource Name (ARN) of the IAM policy that allows Datasync to upload a task report to your S3 bucket.",
+  ).optional(),
+});
+
 const FilterRuleSchema = z.object({
   FilterType: z.enum(["SIMPLE_PATTERN"]).describe(
     "The type of filter rule to apply. AWS DataSync only supports the SIMPLE_PATTERN rule type.",
@@ -51,45 +71,7 @@ const FilterRuleSchema = z.object({
   ).optional(),
 });
 
-const TagSchema = z.object({
-  Key: z.string().min(1).max(256).regex(new RegExp("^[a-zA-Z0-9\\s+=._:/-]+$"))
-    .describe("The key for an AWS resource tag."),
-  Value: z.string().min(1).max(256).regex(
-    new RegExp("^[a-zA-Z0-9\\s+=._:@/-]+$"),
-  ).describe("The value for an AWS resource tag."),
-});
-
-const TaskReportConfigDestinationS3Schema = z.object({
-  Subdirectory: z.string().max(4096).regex(
-    new RegExp("^[a-zA-Z0-9_\\-\\+\\./\\(\\)\\p{Zs}]*$", "u"),
-  ).describe("Specifies a bucket prefix for your report.").optional(),
-  BucketAccessRoleArn: z.string().max(2048).regex(
-    new RegExp(
-      "^arn:(aws|aws-cn|aws-us-gov|aws-eusc|aws-iso|aws-iso-b):iam::[0-9]{12}:role/.*$",
-    ),
-  ).describe(
-    "Specifies the Amazon Resource Name (ARN) of the IAM policy that allows Datasync to upload a task report to your S3 bucket.",
-  ).optional(),
-  S3BucketArn: z.string().max(156).regex(
-    new RegExp(
-      "^arn:(aws|aws-cn|aws-us-gov|aws-eusc|aws-iso|aws-iso-b):(s3|s3-outposts):[a-z\\-0-9]*:[0-9]*:.*$",
-    ),
-  ).describe(
-    "Specifies the ARN of the S3 bucket where Datasync uploads your report.",
-  ).optional(),
-});
-
 const ManifestConfigSourceS3Schema = z.object({
-  ManifestObjectPath: z.string().max(1024).regex(
-    new RegExp("^[\\p{L}\\p{M}\\p{Z}\\p{S}\\p{N}\\p{P}\\p{C}]*$", "u"),
-  ).describe("Specifies the Amazon S3 object key of your manifest.").optional(),
-  BucketAccessRoleArn: z.string().max(2048).regex(
-    new RegExp(
-      "^arn:(aws|aws-cn|aws-us-gov|aws-eusc|aws-iso|aws-iso-b):iam::[0-9]{12}:role/.*$",
-    ),
-  ).describe(
-    "Specifies the AWS Identity and Access Management (IAM) role that allows DataSync to access your manifest.",
-  ).optional(),
   S3BucketArn: z.string().max(156).regex(
     new RegExp(
       "^arn:(aws|aws-cn|aws-us-gov|aws-eusc|aws-iso|aws-iso-b):(s3|s3-outposts):[a-z\\-0-9]*:[0-9]*:.*$",
@@ -97,10 +79,28 @@ const ManifestConfigSourceS3Schema = z.object({
   ).describe(
     "Specifies the Amazon Resource Name (ARN) of the S3 bucket where you're hosting your manifest.",
   ).optional(),
+  BucketAccessRoleArn: z.string().max(2048).regex(
+    new RegExp(
+      "^arn:(aws|aws-cn|aws-us-gov|aws-eusc|aws-iso|aws-iso-b):iam::[0-9]{12}:role/.*$",
+    ),
+  ).describe(
+    "Specifies the AWS Identity and Access Management (IAM) role that allows DataSync to access your manifest.",
+  ).optional(),
   ManifestObjectVersionId: z.string().max(100).regex(new RegExp("^.+$"))
     .describe(
       "Specifies the object version ID of the manifest that you want DataSync to use.",
     ).optional(),
+  ManifestObjectPath: z.string().max(1024).regex(
+    new RegExp("^[\\p{L}\\p{M}\\p{Z}\\p{S}\\p{N}\\p{P}\\p{C}]*$", "u"),
+  ).describe("Specifies the Amazon S3 object key of your manifest.").optional(),
+});
+
+const TagSchema = z.object({
+  Value: z.string().min(1).max(256).regex(
+    new RegExp("^[a-zA-Z0-9\\s+=._:@/-]+$"),
+  ).describe("The value for an AWS resource tag."),
+  Key: z.string().min(1).max(256).regex(new RegExp("^[a-zA-Z0-9\\s+=._:/-]+$"))
+    .describe("The key for an AWS resource tag."),
 });
 
 const GlobalArgsSchema = z.object({
@@ -119,55 +119,57 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  Excludes: z.array(FilterRuleSchema).optional(),
-  Includes: z.array(FilterRuleSchema).optional(),
-  Tags: z.array(TagSchema).describe(
-    "An array of key-value pairs to apply to this resource.",
-  ).optional(),
-  CloudWatchLogGroupArn: z.string().max(562).regex(
-    new RegExp(
-      "^arn:(aws|aws-cn|aws-us-gov|aws-eusc|aws-iso|aws-iso-b):logs:[a-z\\-0-9]*:[0-9]{12}:log-group:([^:\\*]*)(:\\*)?$",
-    ),
-  ).describe(
-    "The ARN of the Amazon CloudWatch log group that is used to monitor and log events in the task.",
-  ).optional(),
   DestinationLocationArn: z.string().max(128).regex(
     new RegExp(
       "^arn:(aws|aws-cn|aws-us-gov|aws-eusc|aws-iso|aws-iso-b):datasync:[a-z\\-0-9]+:[0-9]{12}:location/loc-[0-9a-z]{17}$",
     ),
   ).describe("The ARN of an AWS storage resource's location."),
-  Name: z.string().min(1).max(256).regex(
-    new RegExp("^[a-zA-Z0-9\\s+=._:@/-]+$"),
-  ).describe(
-    "The name of a task. This value is a text reference that is used to identify the task in the console.",
-  ).optional(),
   Options: z.object({
-    Atime: z.enum(["NONE", "BEST_EFFORT"]).describe(
-      "A file metadata value that shows the last time a file was accessed (that is, when the file was read or written to).",
-    ).optional(),
-    BytesPerSecond: z.number().int().min(-1).describe(
-      "A value that limits the bandwidth used by AWS DataSync.",
+    VerifyMode: z.enum([
+      "POINT_IN_TIME_CONSISTENT",
+      "ONLY_FILES_TRANSFERRED",
+      "NONE",
+    ]).describe(
+      "A value that determines whether a data integrity verification should be performed at the end of a task execution after all data and metadata have been transferred.",
     ).optional(),
     Gid: z.enum(["NONE", "INT_VALUE", "NAME", "BOTH"]).describe(
       "The group ID (GID) of the file's owners.",
     ).optional(),
-    LogLevel: z.enum(["OFF", "BASIC", "TRANSFER"]).describe(
-      "A value that determines the types of logs that DataSync publishes to a log stream in the Amazon CloudWatch log group that you provide.",
+    Atime: z.enum(["NONE", "BEST_EFFORT"]).describe(
+      "A file metadata value that shows the last time a file was accessed (that is, when the file was read or written to).",
+    ).optional(),
+    OverwriteMode: z.enum(["ALWAYS", "NEVER"]).describe(
+      "A value that determines whether files at the destination should be overwritten or preserved when copying files.",
+    ).optional(),
+    PreserveDevices: z.enum(["NONE", "PRESERVE"]).describe(
+      "A value that determines whether AWS DataSync should preserve the metadata of block and character devices in the source file system, and recreate the files with that device name and metadata on the destination.",
     ).optional(),
     Mtime: z.enum(["NONE", "PRESERVE"]).describe(
       "A value that indicates the last time that a file was modified (that is, a file was written to) before the PREPARING phase.",
     ).optional(),
-    OverwriteMode: z.enum(["ALWAYS", "NEVER"]).describe(
-      "A value that determines whether files at the destination should be overwritten or preserved when copying files.",
+    TaskQueueing: z.enum(["ENABLED", "DISABLED"]).describe(
+      "A value that determines whether tasks should be queued before executing the tasks.",
+    ).optional(),
+    TransferMode: z.enum(["CHANGED", "ALL"]).describe(
+      "A value that determines whether DataSync transfers only the data and metadata that differ between the source and the destination location, or whether DataSync transfers all the content from the source, without comparing to the destination location.",
+    ).optional(),
+    LogLevel: z.enum(["OFF", "BASIC", "TRANSFER"]).describe(
+      "A value that determines the types of logs that DataSync publishes to a log stream in the Amazon CloudWatch log group that you provide.",
+    ).optional(),
+    ObjectTags: z.enum(["PRESERVE", "NONE"]).describe(
+      "A value that determines whether object tags should be read from the source object store and written to the destination object store.",
+    ).optional(),
+    Uid: z.enum(["NONE", "INT_VALUE", "NAME", "BOTH"]).describe(
+      "The user ID (UID) of the file's owner.",
+    ).optional(),
+    BytesPerSecond: z.number().int().min(-1).describe(
+      "A value that limits the bandwidth used by AWS DataSync.",
     ).optional(),
     PosixPermissions: z.enum(["NONE", "PRESERVE"]).describe(
       "A value that determines which users or groups can access a file for a specific purpose such as reading, writing, or execution of the file.",
     ).optional(),
     PreserveDeletedFiles: z.enum(["PRESERVE", "REMOVE"]).describe(
       "A value that specifies whether files in the destination that don't exist in the source file system should be preserved.",
-    ).optional(),
-    PreserveDevices: z.enum(["NONE", "PRESERVE"]).describe(
-      "A value that determines whether AWS DataSync should preserve the metadata of block and character devices in the source file system, and recreate the files with that device name and metadata on the destination.",
     ).optional(),
     SecurityDescriptorCopyFlags: z.enum([
       "NONE",
@@ -176,24 +178,8 @@ const GlobalArgsSchema = z.object({
     ]).describe(
       "A value that determines which components of the SMB security descriptor are copied during transfer.",
     ).optional(),
-    TaskQueueing: z.enum(["ENABLED", "DISABLED"]).describe(
-      "A value that determines whether tasks should be queued before executing the tasks.",
-    ).optional(),
-    TransferMode: z.enum(["CHANGED", "ALL"]).describe(
-      "A value that determines whether DataSync transfers only the data and metadata that differ between the source and the destination location, or whether DataSync transfers all the content from the source, without comparing to the destination location.",
-    ).optional(),
-    Uid: z.enum(["NONE", "INT_VALUE", "NAME", "BOTH"]).describe(
-      "The user ID (UID) of the file's owner.",
-    ).optional(),
-    VerifyMode: z.enum([
-      "POINT_IN_TIME_CONSISTENT",
-      "ONLY_FILES_TRANSFERRED",
-      "NONE",
-    ]).describe(
-      "A value that determines whether a data integrity verification should be performed at the end of a task execution after all data and metadata have been transferred.",
-    ).optional(),
-    ObjectTags: z.enum(["PRESERVE", "NONE"]).describe(
-      "A value that determines whether object tags should be read from the source object store and written to the destination object store.",
+    ObjectMetadata: z.enum(["PRESERVE", "NONE"]).describe(
+      "A value that determines whether source object metadata should be copied to the destination. PRESERVE copies metadata; NONE copies only file-mtime.",
     ).optional(),
   }).describe(
     "Represents the options that are available to control the behavior of a StartTaskExecution operation.",
@@ -204,9 +190,6 @@ const GlobalArgsSchema = z.object({
         "Specifies the Amazon S3 bucket where DataSync uploads your task report.",
       ).optional(),
     }).describe("Specifies where DataSync uploads your task report."),
-    OutputType: z.enum(["SUMMARY_ONLY", "STANDARD"]).describe(
-      "Specifies the type of task report that you want.",
-    ),
     ReportLevel: z.enum(["ERRORS_ONLY", "SUCCESSES_AND_ERRORS"]).describe(
       "Specifies whether you want your task report to include only what went wrong with your transfer or a list of what succeeded and didn't.",
     ).optional(),
@@ -214,26 +197,12 @@ const GlobalArgsSchema = z.object({
       "Specifies whether your task report includes the new version of each object transferred into an S3 bucket, this only applies if you enable versioning on your bucket.",
     ).optional(),
     Overrides: z.object({
-      Transferred: z.object({
-        ReportLevel: z.enum(["ERRORS_ONLY", "SUCCESSES_AND_ERRORS"]).describe(
-          "Specifies whether you want your task report to include only what went wrong with your transfer or a list of what succeeded and didn't.",
-        ).optional(),
-      }).describe(
-        "Specifies the level of reporting for the files, objects, and directories that Datasync attempted to transfer.",
-      ).optional(),
       Verified: z.object({
         ReportLevel: z.enum(["ERRORS_ONLY", "SUCCESSES_AND_ERRORS"]).describe(
           "Specifies whether you want your task report to include only what went wrong with your transfer or a list of what succeeded and didn't.",
         ).optional(),
       }).describe(
         "Specifies the level of reporting for the files, objects, and directories that Datasync attempted to verify at the end of your transfer. This only applies if you configure your task to verify data during and after the transfer (which Datasync does by default)",
-      ).optional(),
-      Deleted: z.object({
-        ReportLevel: z.enum(["ERRORS_ONLY", "SUCCESSES_AND_ERRORS"]).describe(
-          "Specifies whether you want your task report to include only what went wrong with your transfer or a list of what succeeded and didn't.",
-        ).optional(),
-      }).describe(
-        "Specifies the level of reporting for the files, objects, and directories that Datasync attempted to delete in your destination location. This only applies if you configure your task to delete data in the destination that isn't in the source.",
       ).optional(),
       Skipped: z.object({
         ReportLevel: z.enum(["ERRORS_ONLY", "SUCCESSES_AND_ERRORS"]).describe(
@@ -242,11 +211,37 @@ const GlobalArgsSchema = z.object({
       }).describe(
         "Specifies the level of reporting for the files, objects, and directories that Datasync attempted to skip during your transfer.",
       ).optional(),
+      Transferred: z.object({
+        ReportLevel: z.enum(["ERRORS_ONLY", "SUCCESSES_AND_ERRORS"]).describe(
+          "Specifies whether you want your task report to include only what went wrong with your transfer or a list of what succeeded and didn't.",
+        ).optional(),
+      }).describe(
+        "Specifies the level of reporting for the files, objects, and directories that Datasync attempted to transfer.",
+      ).optional(),
+      Deleted: z.object({
+        ReportLevel: z.enum(["ERRORS_ONLY", "SUCCESSES_AND_ERRORS"]).describe(
+          "Specifies whether you want your task report to include only what went wrong with your transfer or a list of what succeeded and didn't.",
+        ).optional(),
+      }).describe(
+        "Specifies the level of reporting for the files, objects, and directories that Datasync attempted to delete in your destination location. This only applies if you configure your task to delete data in the destination that isn't in the source.",
+      ).optional(),
     }).describe(
       "Customizes the reporting level for aspects of your task report. For example, your report might generally only include errors, but you could specify that you want a list of successes and errors just for the files that Datasync attempted to delete in your destination location.",
     ).optional(),
+    OutputType: z.enum(["SUMMARY_ONLY", "STANDARD"]).describe(
+      "Specifies the type of task report that you want.",
+    ),
   }).describe(
     "Specifies how you want to configure a task report, which provides detailed information about for your Datasync transfer.",
+  ).optional(),
+  Excludes: z.array(FilterRuleSchema).optional(),
+  TaskMode: z.enum(["BASIC", "ENHANCED"]).describe(
+    "Specifies the task mode for the task.",
+  ).optional(),
+  Name: z.string().min(1).max(256).regex(
+    new RegExp("^[a-zA-Z0-9\\s+=._:@/-]+$"),
+  ).describe(
+    "The name of a task. This value is a text reference that is used to identify the task in the console.",
   ).optional(),
   ManifestConfig: z.object({
     Action: z.enum(["TRANSFER"]).describe(
@@ -265,6 +260,7 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Configures a manifest, which is a list of files or objects that you want DataSync to transfer.",
   ).optional(),
+  Includes: z.array(FilterRuleSchema).optional(),
   Schedule: z.object({
     ScheduleExpression: z.string().max(256).regex(
       new RegExp("^[a-zA-Z0-9\\ \\_\\*\\?\\,\\|\\^\\-\\/\\#\\s\\(\\)\\+]*$"),
@@ -274,62 +270,70 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Specifies the schedule you want your task to use for repeated executions.",
   ).optional(),
+  CloudWatchLogGroupArn: z.string().max(562).regex(
+    new RegExp(
+      "^arn:(aws|aws-cn|aws-us-gov|aws-eusc|aws-iso|aws-iso-b):logs:[a-z\\-0-9]*:[0-9]{12}:log-group:([^:\\*]*)(:\\*)?$",
+    ),
+  ).describe(
+    "The ARN of the Amazon CloudWatch log group that is used to monitor and log events in the task.",
+  ).optional(),
   SourceLocationArn: z.string().max(128).regex(
     new RegExp(
       "^arn:(aws|aws-cn|aws-us-gov|aws-eusc|aws-iso|aws-iso-b):datasync:[a-z\\-0-9]+:[0-9]{12}:location/loc-[0-9a-z]{17}$",
     ),
   ).describe("The ARN of the source location for the task."),
-  TaskMode: z.enum(["BASIC", "ENHANCED"]).describe(
-    "Specifies the task mode for the task.",
+  Tags: z.array(TagSchema).describe(
+    "An array of key-value pairs to apply to this resource.",
   ).optional(),
 });
 
 const StateSchema = z.object({
-  Excludes: z.array(FilterRuleSchema).optional(),
-  Includes: z.array(FilterRuleSchema).optional(),
-  Tags: z.array(TagSchema).optional(),
-  CloudWatchLogGroupArn: z.string().optional(),
+  Status: z.string().optional(),
+  SourceNetworkInterfaceArns: z.array(z.string()).optional(),
   DestinationLocationArn: z.string().optional(),
-  Name: z.string().optional(),
   Options: z.object({
-    Atime: z.string(),
-    BytesPerSecond: z.number(),
+    VerifyMode: z.string(),
     Gid: z.string(),
-    LogLevel: z.string(),
-    Mtime: z.string(),
+    Atime: z.string(),
     OverwriteMode: z.string(),
-    PosixPermissions: z.string(),
-    PreserveDeletedFiles: z.string(),
     PreserveDevices: z.string(),
-    SecurityDescriptorCopyFlags: z.string(),
+    Mtime: z.string(),
     TaskQueueing: z.string(),
     TransferMode: z.string(),
-    Uid: z.string(),
-    VerifyMode: z.string(),
+    LogLevel: z.string(),
     ObjectTags: z.string(),
+    Uid: z.string(),
+    BytesPerSecond: z.number(),
+    PosixPermissions: z.string(),
+    PreserveDeletedFiles: z.string(),
+    SecurityDescriptorCopyFlags: z.string(),
+    ObjectMetadata: z.string(),
   }).optional(),
   TaskReportConfig: z.object({
     Destination: z.object({
       S3: TaskReportConfigDestinationS3Schema,
     }),
-    OutputType: z.string(),
     ReportLevel: z.string(),
     ObjectVersionIds: z.string(),
     Overrides: z.object({
-      Transferred: z.object({
-        ReportLevel: z.string(),
-      }),
       Verified: z.object({
-        ReportLevel: z.string(),
-      }),
-      Deleted: z.object({
         ReportLevel: z.string(),
       }),
       Skipped: z.object({
         ReportLevel: z.string(),
       }),
+      Transferred: z.object({
+        ReportLevel: z.string(),
+      }),
+      Deleted: z.object({
+        ReportLevel: z.string(),
+      }),
     }),
+    OutputType: z.string(),
   }).optional(),
+  Excludes: z.array(FilterRuleSchema).optional(),
+  TaskMode: z.string().optional(),
+  Name: z.string().optional(),
   ManifestConfig: z.object({
     Action: z.string(),
     Format: z.string(),
@@ -337,16 +341,16 @@ const StateSchema = z.object({
       S3: ManifestConfigSourceS3Schema,
     }),
   }).optional(),
-  Schedule: z.object({
-    ScheduleExpression: z.string(),
-    Status: z.string(),
-  }).optional(),
-  SourceLocationArn: z.string().optional(),
   TaskArn: z.string(),
-  TaskMode: z.string().optional(),
-  Status: z.string().optional(),
-  SourceNetworkInterfaceArns: z.array(z.string()).optional(),
+  Includes: z.array(FilterRuleSchema).optional(),
   DestinationNetworkInterfaceArns: z.array(z.string()).optional(),
+  Schedule: z.object({
+    Status: z.string(),
+    ScheduleExpression: z.string(),
+  }).optional(),
+  CloudWatchLogGroupArn: z.string().optional(),
+  SourceLocationArn: z.string().optional(),
+  Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -357,55 +361,57 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  Excludes: z.array(FilterRuleSchema).optional(),
-  Includes: z.array(FilterRuleSchema).optional(),
-  Tags: z.array(TagSchema).describe(
-    "An array of key-value pairs to apply to this resource.",
-  ).optional(),
-  CloudWatchLogGroupArn: z.string().max(562).regex(
-    new RegExp(
-      "^arn:(aws|aws-cn|aws-us-gov|aws-eusc|aws-iso|aws-iso-b):logs:[a-z\\-0-9]*:[0-9]{12}:log-group:([^:\\*]*)(:\\*)?$",
-    ),
-  ).describe(
-    "The ARN of the Amazon CloudWatch log group that is used to monitor and log events in the task.",
-  ).optional(),
   DestinationLocationArn: z.string().max(128).regex(
     new RegExp(
       "^arn:(aws|aws-cn|aws-us-gov|aws-eusc|aws-iso|aws-iso-b):datasync:[a-z\\-0-9]+:[0-9]{12}:location/loc-[0-9a-z]{17}$",
     ),
   ).describe("The ARN of an AWS storage resource's location.").optional(),
-  Name: z.string().min(1).max(256).regex(
-    new RegExp("^[a-zA-Z0-9\\s+=._:@/-]+$"),
-  ).describe(
-    "The name of a task. This value is a text reference that is used to identify the task in the console.",
-  ).optional(),
   Options: z.object({
-    Atime: z.enum(["NONE", "BEST_EFFORT"]).describe(
-      "A file metadata value that shows the last time a file was accessed (that is, when the file was read or written to).",
-    ).optional(),
-    BytesPerSecond: z.number().int().min(-1).describe(
-      "A value that limits the bandwidth used by AWS DataSync.",
+    VerifyMode: z.enum([
+      "POINT_IN_TIME_CONSISTENT",
+      "ONLY_FILES_TRANSFERRED",
+      "NONE",
+    ]).describe(
+      "A value that determines whether a data integrity verification should be performed at the end of a task execution after all data and metadata have been transferred.",
     ).optional(),
     Gid: z.enum(["NONE", "INT_VALUE", "NAME", "BOTH"]).describe(
       "The group ID (GID) of the file's owners.",
     ).optional(),
-    LogLevel: z.enum(["OFF", "BASIC", "TRANSFER"]).describe(
-      "A value that determines the types of logs that DataSync publishes to a log stream in the Amazon CloudWatch log group that you provide.",
+    Atime: z.enum(["NONE", "BEST_EFFORT"]).describe(
+      "A file metadata value that shows the last time a file was accessed (that is, when the file was read or written to).",
+    ).optional(),
+    OverwriteMode: z.enum(["ALWAYS", "NEVER"]).describe(
+      "A value that determines whether files at the destination should be overwritten or preserved when copying files.",
+    ).optional(),
+    PreserveDevices: z.enum(["NONE", "PRESERVE"]).describe(
+      "A value that determines whether AWS DataSync should preserve the metadata of block and character devices in the source file system, and recreate the files with that device name and metadata on the destination.",
     ).optional(),
     Mtime: z.enum(["NONE", "PRESERVE"]).describe(
       "A value that indicates the last time that a file was modified (that is, a file was written to) before the PREPARING phase.",
     ).optional(),
-    OverwriteMode: z.enum(["ALWAYS", "NEVER"]).describe(
-      "A value that determines whether files at the destination should be overwritten or preserved when copying files.",
+    TaskQueueing: z.enum(["ENABLED", "DISABLED"]).describe(
+      "A value that determines whether tasks should be queued before executing the tasks.",
+    ).optional(),
+    TransferMode: z.enum(["CHANGED", "ALL"]).describe(
+      "A value that determines whether DataSync transfers only the data and metadata that differ between the source and the destination location, or whether DataSync transfers all the content from the source, without comparing to the destination location.",
+    ).optional(),
+    LogLevel: z.enum(["OFF", "BASIC", "TRANSFER"]).describe(
+      "A value that determines the types of logs that DataSync publishes to a log stream in the Amazon CloudWatch log group that you provide.",
+    ).optional(),
+    ObjectTags: z.enum(["PRESERVE", "NONE"]).describe(
+      "A value that determines whether object tags should be read from the source object store and written to the destination object store.",
+    ).optional(),
+    Uid: z.enum(["NONE", "INT_VALUE", "NAME", "BOTH"]).describe(
+      "The user ID (UID) of the file's owner.",
+    ).optional(),
+    BytesPerSecond: z.number().int().min(-1).describe(
+      "A value that limits the bandwidth used by AWS DataSync.",
     ).optional(),
     PosixPermissions: z.enum(["NONE", "PRESERVE"]).describe(
       "A value that determines which users or groups can access a file for a specific purpose such as reading, writing, or execution of the file.",
     ).optional(),
     PreserveDeletedFiles: z.enum(["PRESERVE", "REMOVE"]).describe(
       "A value that specifies whether files in the destination that don't exist in the source file system should be preserved.",
-    ).optional(),
-    PreserveDevices: z.enum(["NONE", "PRESERVE"]).describe(
-      "A value that determines whether AWS DataSync should preserve the metadata of block and character devices in the source file system, and recreate the files with that device name and metadata on the destination.",
     ).optional(),
     SecurityDescriptorCopyFlags: z.enum([
       "NONE",
@@ -414,24 +420,8 @@ const InputsSchema = z.object({
     ]).describe(
       "A value that determines which components of the SMB security descriptor are copied during transfer.",
     ).optional(),
-    TaskQueueing: z.enum(["ENABLED", "DISABLED"]).describe(
-      "A value that determines whether tasks should be queued before executing the tasks.",
-    ).optional(),
-    TransferMode: z.enum(["CHANGED", "ALL"]).describe(
-      "A value that determines whether DataSync transfers only the data and metadata that differ between the source and the destination location, or whether DataSync transfers all the content from the source, without comparing to the destination location.",
-    ).optional(),
-    Uid: z.enum(["NONE", "INT_VALUE", "NAME", "BOTH"]).describe(
-      "The user ID (UID) of the file's owner.",
-    ).optional(),
-    VerifyMode: z.enum([
-      "POINT_IN_TIME_CONSISTENT",
-      "ONLY_FILES_TRANSFERRED",
-      "NONE",
-    ]).describe(
-      "A value that determines whether a data integrity verification should be performed at the end of a task execution after all data and metadata have been transferred.",
-    ).optional(),
-    ObjectTags: z.enum(["PRESERVE", "NONE"]).describe(
-      "A value that determines whether object tags should be read from the source object store and written to the destination object store.",
+    ObjectMetadata: z.enum(["PRESERVE", "NONE"]).describe(
+      "A value that determines whether source object metadata should be copied to the destination. PRESERVE copies metadata; NONE copies only file-mtime.",
     ).optional(),
   }).describe(
     "Represents the options that are available to control the behavior of a StartTaskExecution operation.",
@@ -443,9 +433,6 @@ const InputsSchema = z.object({
       ).optional(),
     }).describe("Specifies where DataSync uploads your task report.")
       .optional(),
-    OutputType: z.enum(["SUMMARY_ONLY", "STANDARD"]).describe(
-      "Specifies the type of task report that you want.",
-    ).optional(),
     ReportLevel: z.enum(["ERRORS_ONLY", "SUCCESSES_AND_ERRORS"]).describe(
       "Specifies whether you want your task report to include only what went wrong with your transfer or a list of what succeeded and didn't.",
     ).optional(),
@@ -453,26 +440,12 @@ const InputsSchema = z.object({
       "Specifies whether your task report includes the new version of each object transferred into an S3 bucket, this only applies if you enable versioning on your bucket.",
     ).optional(),
     Overrides: z.object({
-      Transferred: z.object({
-        ReportLevel: z.enum(["ERRORS_ONLY", "SUCCESSES_AND_ERRORS"]).describe(
-          "Specifies whether you want your task report to include only what went wrong with your transfer or a list of what succeeded and didn't.",
-        ).optional(),
-      }).describe(
-        "Specifies the level of reporting for the files, objects, and directories that Datasync attempted to transfer.",
-      ).optional(),
       Verified: z.object({
         ReportLevel: z.enum(["ERRORS_ONLY", "SUCCESSES_AND_ERRORS"]).describe(
           "Specifies whether you want your task report to include only what went wrong with your transfer or a list of what succeeded and didn't.",
         ).optional(),
       }).describe(
         "Specifies the level of reporting for the files, objects, and directories that Datasync attempted to verify at the end of your transfer. This only applies if you configure your task to verify data during and after the transfer (which Datasync does by default)",
-      ).optional(),
-      Deleted: z.object({
-        ReportLevel: z.enum(["ERRORS_ONLY", "SUCCESSES_AND_ERRORS"]).describe(
-          "Specifies whether you want your task report to include only what went wrong with your transfer or a list of what succeeded and didn't.",
-        ).optional(),
-      }).describe(
-        "Specifies the level of reporting for the files, objects, and directories that Datasync attempted to delete in your destination location. This only applies if you configure your task to delete data in the destination that isn't in the source.",
       ).optional(),
       Skipped: z.object({
         ReportLevel: z.enum(["ERRORS_ONLY", "SUCCESSES_AND_ERRORS"]).describe(
@@ -481,11 +454,37 @@ const InputsSchema = z.object({
       }).describe(
         "Specifies the level of reporting for the files, objects, and directories that Datasync attempted to skip during your transfer.",
       ).optional(),
+      Transferred: z.object({
+        ReportLevel: z.enum(["ERRORS_ONLY", "SUCCESSES_AND_ERRORS"]).describe(
+          "Specifies whether you want your task report to include only what went wrong with your transfer or a list of what succeeded and didn't.",
+        ).optional(),
+      }).describe(
+        "Specifies the level of reporting for the files, objects, and directories that Datasync attempted to transfer.",
+      ).optional(),
+      Deleted: z.object({
+        ReportLevel: z.enum(["ERRORS_ONLY", "SUCCESSES_AND_ERRORS"]).describe(
+          "Specifies whether you want your task report to include only what went wrong with your transfer or a list of what succeeded and didn't.",
+        ).optional(),
+      }).describe(
+        "Specifies the level of reporting for the files, objects, and directories that Datasync attempted to delete in your destination location. This only applies if you configure your task to delete data in the destination that isn't in the source.",
+      ).optional(),
     }).describe(
       "Customizes the reporting level for aspects of your task report. For example, your report might generally only include errors, but you could specify that you want a list of successes and errors just for the files that Datasync attempted to delete in your destination location.",
     ).optional(),
+    OutputType: z.enum(["SUMMARY_ONLY", "STANDARD"]).describe(
+      "Specifies the type of task report that you want.",
+    ).optional(),
   }).describe(
     "Specifies how you want to configure a task report, which provides detailed information about for your Datasync transfer.",
+  ).optional(),
+  Excludes: z.array(FilterRuleSchema).optional(),
+  TaskMode: z.enum(["BASIC", "ENHANCED"]).describe(
+    "Specifies the task mode for the task.",
+  ).optional(),
+  Name: z.string().min(1).max(256).regex(
+    new RegExp("^[a-zA-Z0-9\\s+=._:@/-]+$"),
+  ).describe(
+    "The name of a task. This value is a text reference that is used to identify the task in the console.",
   ).optional(),
   ManifestConfig: z.object({
     Action: z.enum(["TRANSFER"]).describe(
@@ -504,6 +503,7 @@ const InputsSchema = z.object({
   }).describe(
     "Configures a manifest, which is a list of files or objects that you want DataSync to transfer.",
   ).optional(),
+  Includes: z.array(FilterRuleSchema).optional(),
   Schedule: z.object({
     ScheduleExpression: z.string().max(256).regex(
       new RegExp("^[a-zA-Z0-9\\ \\_\\*\\?\\,\\|\\^\\-\\/\\#\\s\\(\\)\\+]*$"),
@@ -513,13 +513,20 @@ const InputsSchema = z.object({
   }).describe(
     "Specifies the schedule you want your task to use for repeated executions.",
   ).optional(),
+  CloudWatchLogGroupArn: z.string().max(562).regex(
+    new RegExp(
+      "^arn:(aws|aws-cn|aws-us-gov|aws-eusc|aws-iso|aws-iso-b):logs:[a-z\\-0-9]*:[0-9]{12}:log-group:([^:\\*]*)(:\\*)?$",
+    ),
+  ).describe(
+    "The ARN of the Amazon CloudWatch log group that is used to monitor and log events in the task.",
+  ).optional(),
   SourceLocationArn: z.string().max(128).regex(
     new RegExp(
       "^arn:(aws|aws-cn|aws-us-gov|aws-eusc|aws-iso|aws-iso-b):datasync:[a-z\\-0-9]+:[0-9]{12}:location/loc-[0-9a-z]{17}$",
     ),
   ).describe("The ARN of the source location for the task.").optional(),
-  TaskMode: z.enum(["BASIC", "ENHANCED"]).describe(
-    "Specifies the task mode for the task.",
+  Tags: z.array(TagSchema).describe(
+    "An array of key-value pairs to apply to this resource.",
   ).optional(),
 });
 
@@ -542,7 +549,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataSync Task. Registered at `@swamp/aws/datasync/task`. */
 export const model = {
   type: "@swamp/aws/datasync/task",
-  version: "2026.08.17.1",
+  version: "2026.09.17.1",
+  upgrades: [
+    {
+      toVersion: "2026.09.17.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

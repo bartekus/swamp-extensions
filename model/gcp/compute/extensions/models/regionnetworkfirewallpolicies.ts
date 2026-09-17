@@ -222,6 +222,9 @@ const GlobalArgsSchema = z.object({
       "Output only. [Output Only] The firewall policy ID of the association.",
     ).optional(),
     name: z.string().describe("The name for an association.").optional(),
+    priority: z.number().int().describe(
+      "An integer indicating the priority of an association. The priority must be a positive value between 1 and 2147483647. Firewall Policies are evaluated from highest to lowest priority where 1 is the highest priority and 2147483647 is the lowest priority. The default value is `1000`. If two associations have the same priority then lexicographical order on association names is applied.",
+    ).optional(),
     shortName: z.string().describe(
       "Output only. [Output Only] The short name of the firewall policy of the association.",
     ).optional(),
@@ -557,6 +560,7 @@ const StateSchema = z.object({
     displayName: z.string(),
     firewallPolicyId: z.string(),
     name: z.string(),
+    priority: z.number(),
     shortName: z.string(),
   })).optional(),
   creationTimestamp: z.string().optional(),
@@ -688,6 +692,9 @@ const InputsSchema = z.object({
       "Output only. [Output Only] The firewall policy ID of the association.",
     ).optional(),
     name: z.string().describe("The name for an association.").optional(),
+    priority: z.number().int().describe(
+      "An integer indicating the priority of an association. The priority must be a positive value between 1 and 2147483647. Firewall Policies are evaluated from highest to lowest priority where 1 is the highest priority and 2147483647 is the lowest priority. The default value is `1000`. If two associations have the same priority then lexicographical order on association names is applied.",
+    ).optional(),
     shortName: z.string().describe(
       "Output only. [Output Only] The short name of the firewall policy of the association.",
     ).optional(),
@@ -1043,7 +1050,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine RegionNetworkFirewallPolicies. Registered at `@swamp/gcp/compute/regionnetworkfirewallpolicies`. */
 export const model = {
   type: "@swamp/gcp/compute/regionnetworkfirewallpolicies",
-  version: "2026.09.07.1",
+  version: "2026.09.17.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1232,6 +1239,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1591,7 +1603,9 @@ export const model = {
         displayName: z.any().optional(),
         firewallPolicyId: z.any().optional(),
         name: z.any().optional(),
+        priority: z.any().optional(),
         shortName: z.any().optional(),
+        associatedPolicyToBeReplaced: z.any().optional(),
         replaceExistingAssociation: z.any().optional(),
         requestId: z.any().optional(),
       }),
@@ -1617,6 +1631,11 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         params["firewallPolicy"] = existing["name"]?.toString() ??
           g["name"]?.toString() ?? "";
+        if (args["associatedPolicyToBeReplaced"] !== undefined) {
+          params["associatedPolicyToBeReplaced"] = String(
+            args["associatedPolicyToBeReplaced"],
+          );
+        }
         if (args["replaceExistingAssociation"] !== undefined) {
           params["replaceExistingAssociation"] = String(
             args["replaceExistingAssociation"],
@@ -1636,6 +1655,7 @@ export const model = {
           body["firewallPolicyId"] = args["firewallPolicyId"];
         }
         if (args["name"] !== undefined) body["name"] = args["name"];
+        if (args["priority"] !== undefined) body["priority"] = args["priority"];
         if (args["shortName"] !== undefined) {
           body["shortName"] = args["shortName"];
         }
@@ -1648,6 +1668,7 @@ export const model = {
             "httpMethod": "POST",
             "parameterOrder": ["project", "region", "firewallPolicy"],
             "parameters": {
+              "associatedPolicyToBeReplaced": { "location": "query" },
               "firewallPolicy": { "location": "path", "required": true },
               "project": { "location": "path", "required": true },
               "region": { "location": "path", "required": true },
@@ -2053,6 +2074,82 @@ export const model = {
           },
           params,
           undefined,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    patch_association: {
+      description: "patch association",
+      arguments: z.object({
+        attachmentTarget: z.any().optional(),
+        displayName: z.any().optional(),
+        firewallPolicyId: z.any().optional(),
+        name: z.any().optional(),
+        priority: z.any().optional(),
+        shortName: z.any().optional(),
+        requestId: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["region"] !== undefined) params["region"] = String(g["region"]);
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["firewallPolicy"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        if (args["requestId"] !== undefined) {
+          params["requestId"] = String(args["requestId"]);
+        }
+        const body: Record<string, unknown> = {};
+        if (args["attachmentTarget"] !== undefined) {
+          body["attachmentTarget"] = args["attachmentTarget"];
+        }
+        if (args["displayName"] !== undefined) {
+          body["displayName"] = args["displayName"];
+        }
+        if (args["firewallPolicyId"] !== undefined) {
+          body["firewallPolicyId"] = args["firewallPolicyId"];
+        }
+        if (args["name"] !== undefined) body["name"] = args["name"];
+        if (args["priority"] !== undefined) body["priority"] = args["priority"];
+        if (args["shortName"] !== undefined) {
+          body["shortName"] = args["shortName"];
+        }
+        const result = await createResource(
+          baseUrl,
+          {
+            "id": "compute.regionNetworkFirewallPolicies.patchAssociation",
+            "path":
+              "projects/{project}/regions/{region}/firewallPolicies/{firewallPolicy}/patchAssociation",
+            "httpMethod": "POST",
+            "parameterOrder": ["project", "region", "firewallPolicy"],
+            "parameters": {
+              "firewallPolicy": { "location": "path", "required": true },
+              "project": { "location": "path", "required": true },
+              "region": { "location": "path", "required": true },
+              "requestId": { "location": "query" },
+            },
+          },
+          params,
+          body,
           undefined,
           undefined,
           undefined,

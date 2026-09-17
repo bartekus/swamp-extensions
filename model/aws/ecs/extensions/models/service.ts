@@ -364,6 +364,12 @@ const DeploymentLifecycleHookSchema = z.object({
   ).optional(),
 });
 
+const DeploymentEarlySuccessCriteriaSchema = z.object({
+  SourceServiceRevisionCleanup: z.enum(["BLOCKING", "DEFERRED"]).optional(),
+  HealthyPercent: z.number().int().min(0).max(100).optional(),
+  Enable: z.boolean().optional(),
+});
+
 const DeploymentAlarmsSchema = z.object({
   AlarmNames: z.array(z.string()).describe(
     'One or more CloudWatch alarm names. Use a "," to separate the alarms.',
@@ -547,6 +553,7 @@ const GlobalArgsSchema = z.object({
     LifecycleHooks: z.array(DeploymentLifecycleHookSchema).describe(
       "An array of deployment lifecycle hook objects to run custom logic or pause the deployment at specific stages of the deployment lifecycle.",
     ).optional(),
+    EarlySuccessCriteria: DeploymentEarlySuccessCriteriaSchema.optional(),
     Alarms: DeploymentAlarmsSchema.describe(
       "Information about the CloudWatch alarms.",
     ).optional(),
@@ -619,6 +626,7 @@ const StateSchema = z.object({
     CanaryConfiguration: CanaryConfigurationSchema,
     BakeTimeInMinutes: z.number(),
     LifecycleHooks: z.array(DeploymentLifecycleHookSchema),
+    EarlySuccessCriteria: DeploymentEarlySuccessCriteriaSchema,
     Alarms: DeploymentAlarmsSchema,
     Strategy: z.string(),
     DeploymentCircuitBreaker: DeploymentCircuitBreakerSchema,
@@ -758,6 +766,7 @@ const InputsSchema = z.object({
     LifecycleHooks: z.array(DeploymentLifecycleHookSchema).describe(
       "An array of deployment lifecycle hook objects to run custom logic or pause the deployment at specific stages of the deployment lifecycle.",
     ).optional(),
+    EarlySuccessCriteria: DeploymentEarlySuccessCriteriaSchema.optional(),
     Alarms: DeploymentAlarmsSchema.describe(
       "Information about the CloudWatch alarms.",
     ).optional(),
@@ -800,7 +809,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ECS Service. Registered at `@swamp/aws/ecs/service`. */
 export const model = {
   type: "@swamp/aws/ecs/service",
-  version: "2026.08.17.2",
+  version: "2026.09.17.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -889,6 +898,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -60,9 +60,7 @@ const GlobalArgsSchema = z.object({
     "ES256",
     "ES384",
     "ES512",
-  ]).describe(
-    "The signing algorithm to use for the issuer. EdDSA is not accepted for new issuers.",
-  ).optional(),
+  ]).describe("The signing algorithm to use for the issuer.").optional(),
   policy: z.object({
     kind: z.enum(["project-grant"]),
     teamId: z.string(),
@@ -169,7 +167,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Issuers. Registered at `@swamp/vercel/kms/issuers`. */
 export const model = {
   type: "@swamp/vercel/kms/issuers",
-  version: "2026.09.16.1",
+  version: "2026.09.17.1",
   upgrades: [
     {
       toVersion: "2026.09.08.1",
@@ -178,6 +176,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.16.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

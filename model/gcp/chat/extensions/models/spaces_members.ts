@@ -230,23 +230,6 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Optional. The Google Group the membership corresponds to. Reading or mutating memberships for Google Groups requires [user authentication](https://developers.google.com/workspace/chat/authenticate-authorize-chat-user).",
   ).optional(),
-  member: z.object({
-    displayName: z.string().describe("Output only. The user's display name.")
-      .optional(),
-    domainId: z.string().describe(
-      "Unique identifier of the user's Google Workspace domain.",
-    ).optional(),
-    isAnonymous: z.boolean().describe(
-      "Output only. When `true`, the user is deleted or their profile is not visible.",
-    ).optional(),
-    name: z.string().describe(
-      "Resource name for a Google Chat user. Format: `users/{user}`. `users/app` can be used as an alias for the calling app bot user. For human users, `{user}` is the same user identifier as: - the `id` for the [Person](https://developers.google.com/people/api/rest/v1/people) in the People API. For example, `users/123456789` in Chat API represents the same person as the `123456789` Person profile ID in People API. - the `id` for a [user](https://developers.google.com/admin-sdk/directory/reference/rest/v1/users) in the Admin SDK Directory API. - the user's email address can be used as an alias for `{user}` in API requests. For example, if the People API Person profile ID for `user@example.com` is `123456789`, you can use `users/user@example.com` as an alias to reference `users/123456789`. Only the canonical resource name (for example `users/123456789`) will be returned from the API.",
-    ).optional(),
-    type: z.enum(["TYPE_UNSPECIFIED", "HUMAN", "BOT"]).describe("User type.")
-      .optional(),
-  }).describe(
-    "Optional. The Google Chat user or app the membership corresponds to. If your Chat app [authenticates as a user](https://developers.google.com/workspace/chat/authenticate-authorize-chat-user), the output populates the [user](https://developers.google.com/workspace/chat/api/reference/rest/v1/User) `name` and `type`.",
-  ).optional(),
   name: z.string().describe(
     "Identifier. Resource name of the membership, assigned by the server. Format: `spaces/{space}/members/{member}`",
   ).optional(),
@@ -301,23 +284,6 @@ const InputsSchema = z.object({
   }).describe(
     "Optional. The Google Group the membership corresponds to. Reading or mutating memberships for Google Groups requires [user authentication](https://developers.google.com/workspace/chat/authenticate-authorize-chat-user).",
   ).optional(),
-  member: z.object({
-    displayName: z.string().describe("Output only. The user's display name.")
-      .optional(),
-    domainId: z.string().describe(
-      "Unique identifier of the user's Google Workspace domain.",
-    ).optional(),
-    isAnonymous: z.boolean().describe(
-      "Output only. When `true`, the user is deleted or their profile is not visible.",
-    ).optional(),
-    name: z.string().describe(
-      "Resource name for a Google Chat user. Format: `users/{user}`. `users/app` can be used as an alias for the calling app bot user. For human users, `{user}` is the same user identifier as: - the `id` for the [Person](https://developers.google.com/people/api/rest/v1/people) in the People API. For example, `users/123456789` in Chat API represents the same person as the `123456789` Person profile ID in People API. - the `id` for a [user](https://developers.google.com/admin-sdk/directory/reference/rest/v1/users) in the Admin SDK Directory API. - the user's email address can be used as an alias for `{user}` in API requests. For example, if the People API Person profile ID for `user@example.com` is `123456789`, you can use `users/user@example.com` as an alias to reference `users/123456789`. Only the canonical resource name (for example `users/123456789`) will be returned from the API.",
-    ).optional(),
-    type: z.enum(["TYPE_UNSPECIFIED", "HUMAN", "BOT"]).describe("User type.")
-      .optional(),
-  }).describe(
-    "Optional. The Google Chat user or app the membership corresponds to. If your Chat app [authenticates as a user](https://developers.google.com/workspace/chat/authenticate-authorize-chat-user), the output populates the [user](https://developers.google.com/workspace/chat/api/reference/rest/v1/User) `name` and `type`.",
-  ).optional(),
   name: z.string().describe(
     "Identifier. Resource name of the membership, assigned by the server. Format: `spaces/{space}/members/{member}`",
   ).optional(),
@@ -363,7 +329,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Chat Spaces.Members. Registered at `@swamp/gcp/chat/spaces-members`. */
 export const model = {
   type: "@swamp/gcp/chat/spaces-members",
-  version: "2026.08.25.1",
+  version: "2026.09.17.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -505,6 +471,14 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.17.1",
+      description: "Removed: member",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { member: _member, ...rest } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -533,7 +507,6 @@ export const model = {
         if (g["groupMember"] !== undefined) {
           body["groupMember"] = g["groupMember"];
         }
-        if (g["member"] !== undefined) body["member"] = g["member"];
         if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["role"] !== undefined) body["role"] = g["role"];
         if (g["useAdminAccess"] !== undefined) {
@@ -650,7 +623,6 @@ export const model = {
         if (g["groupMember"] !== undefined) {
           body["groupMember"] = g["groupMember"];
         }
-        if (g["member"] !== undefined) body["member"] = g["member"];
         if (g["role"] !== undefined) body["role"] = g["role"];
         const updateMaskKeys = Object.keys(body);
         if (updateMaskKeys.length > 0) {

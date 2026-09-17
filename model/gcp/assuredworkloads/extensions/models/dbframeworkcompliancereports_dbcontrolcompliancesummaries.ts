@@ -103,6 +103,8 @@ const StateSchema = z.object({
     cloudControlAssessmentDetails: z.object({
       evaluationState: z.string(),
       findingsCount: z.number(),
+      orgPolicyFindingCount: z.string(),
+      resourceFindingCount: z.string(),
     }),
     cloudControlDeployment: z.string(),
     cloudControlType: z.string(),
@@ -137,7 +139,9 @@ const StateSchema = z.object({
   displayName: z.string().optional(),
   isFakeControl: z.boolean().optional(),
   name: z.string(),
+  orgPolicyFindingCount: z.string().optional(),
   overallEvaluationState: z.string().optional(),
+  resourceFindingCount: z.string().optional(),
   similarControls: z.array(z.object({
     controlId: z.string(),
     framework: z.string(),
@@ -187,7 +191,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/assuredworkloads/dbframeworkcompliancereports-dbcontrolcompliancesummaries",
-  version: "2026.08.12.2",
+  version: "2026.09.17.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -196,6 +200,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

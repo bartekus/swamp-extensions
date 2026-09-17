@@ -526,7 +526,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Assured Workloads Workloads. Registered at `@swamp/gcp/assuredworkloads/workloads`. */
 export const model = {
   type: "@swamp/gcp/assuredworkloads/workloads",
-  version: "2026.09.07.1",
+  version: "2026.09.17.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -674,6 +674,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1013,9 +1018,9 @@ export const model = {
       description: "List workloads resources",
       arguments: z.object({
         filter: z.string().describe(
-          "A custom filter for filtering by properties of a workload. At this time, only filtering by labels is supported.",
+          "Optional. A custom filter for filtering by properties of a workload. At this time, only filtering by labels is supported.",
         ).optional(),
-        pageSize: z.number().describe("Page size.").optional(),
+        pageSize: z.number().describe("Optional. Page size.").optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",
         ).optional(),

@@ -506,6 +506,16 @@ const GlobalArgsSchema = z.object({
       }).describe("Required. The XDR settings for the Pub/Sub XDR config.")
         .optional(),
     }).describe("Pub/Sub XDR connector config.").optional(),
+    secureGatewayConfig: z.object({
+      enabledPlatforms: z.array(
+        z.enum(["PLATFORM_UNSPECIFIED", "ANDROID", "IOS"]),
+      ).describe(
+        "Optional. The enabled platforms for the secure gateway connector config.",
+      ).optional(),
+      resourceId: z.string().describe(
+        "Required. The resource ID of the secure gateway connector config.",
+      ).optional(),
+    }).describe("Secure gateway connector config.").optional(),
     splunkConfig: z.object({
       hecToken: z.string().describe(
         "Required. Input only. The data input's HTTP Event Collector token to use as an Authorization header.",
@@ -585,6 +595,7 @@ const GlobalArgsSchema = z.object({
     "CERTIFICATE_AUTHORITY",
     "ROOT_STORE",
     "CONTENT_ANALYSIS",
+    "ENTERPRISE_PROXY",
   ]).describe("Required. The type of the connector.").optional(),
   connectorConfigId: z.string().describe(
     "Optional. ID to use for the connector config, which becomes the final component of the connector config's resource name. If provided, the ID must be 1-36 characters long, and contain only lowercase letters, digits, and hyphens. It must start with a letter, and end with a letter or number. If not provided, the connector config will be assigned a random UUID.",
@@ -662,6 +673,10 @@ const StateSchema = z.object({
       xdrSettings: z.object({
         enableAllXdrEvents: z.boolean(),
       }),
+    }),
+    secureGatewayConfig: z.object({
+      enabledPlatforms: z.array(z.string()),
+      resourceId: z.string(),
     }),
     splunkConfig: z.object({
       hecToken: z.string(),
@@ -1033,6 +1048,16 @@ const InputsSchema = z.object({
       }).describe("Required. The XDR settings for the Pub/Sub XDR config.")
         .optional(),
     }).describe("Pub/Sub XDR connector config.").optional(),
+    secureGatewayConfig: z.object({
+      enabledPlatforms: z.array(
+        z.enum(["PLATFORM_UNSPECIFIED", "ANDROID", "IOS"]),
+      ).describe(
+        "Optional. The enabled platforms for the secure gateway connector config.",
+      ).optional(),
+      resourceId: z.string().describe(
+        "Required. The resource ID of the secure gateway connector config.",
+      ).optional(),
+    }).describe("Secure gateway connector config.").optional(),
     splunkConfig: z.object({
       hecToken: z.string().describe(
         "Required. Input only. The data input's HTTP Event Collector token to use as an Authorization header.",
@@ -1112,6 +1137,7 @@ const InputsSchema = z.object({
     "CERTIFICATE_AUTHORITY",
     "ROOT_STORE",
     "CONTENT_ANALYSIS",
+    "ENTERPRISE_PROXY",
   ]).describe("Required. The type of the connector.").optional(),
   connectorConfigId: z.string().describe(
     "Optional. ID to use for the connector config, which becomes the final component of the connector config's resource name. If provided, the ID must be 1-36 characters long, and contain only lowercase letters, digits, and hyphens. It must start with a letter, and end with a letter or number. If not provided, the connector config will be assigned a random UUID.",
@@ -1147,7 +1173,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Chrome Management Customers.ConnectorConfigs. Registered at `@swamp/gcp/chromemanagement/customers-connectorconfigs`. */
 export const model = {
   type: "@swamp/gcp/chromemanagement/customers-connectorconfigs",
-  version: "2026.08.12.2",
+  version: "2026.09.17.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -1156,6 +1182,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -168,7 +168,7 @@ const GlobalArgsSchema = z.object({
       "REFRESH_TOKEN_GRANT",
     ]),
   ).describe(
-    "Required. The list of OAuth grant types is allowed for the OauthClient.",
+    "Optional. The list of OAuth grant types is allowed for the OauthClient.",
   ).optional(),
   allowedRedirectUris: z.array(z.string()).describe(
     "Required. The list of redirect uris that is allowed to redirect back when authorization process is completed.",
@@ -233,7 +233,7 @@ const InputsSchema = z.object({
       "REFRESH_TOKEN_GRANT",
     ]),
   ).describe(
-    "Required. The list of OAuth grant types is allowed for the OauthClient.",
+    "Optional. The list of OAuth grant types is allowed for the OauthClient.",
   ).optional(),
   allowedRedirectUris: z.array(z.string()).describe(
     "Required. The list of redirect uris that is allowed to redirect back when authorization process is completed.",
@@ -294,7 +294,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Identity and Access Management (IAM) OauthClients. Registered at `@swamp/gcp/iam/oauthclients`. */
 export const model = {
   type: "@swamp/gcp/iam/oauthclients",
-  version: "2026.08.12.2",
+  version: "2026.09.17.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -303,6 +303,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

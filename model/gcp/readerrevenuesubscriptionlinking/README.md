@@ -14,7 +14,7 @@ the live state in GCP. Available methods:
 - **sync** — refresh all resource properties from the API
 
 Use
-`swamp model type describe @swamp/gcp/readerrevenuesubscriptionlinking/publications_readers`
+`swamp model type describe @swamp/gcp/readerrevenuesubscriptionlinking/publications_-_readers_entitlements`
 to see the full list of configurable properties and available methods for this
 model.
 
@@ -67,17 +67,17 @@ gcloud config set project my-project
 ## Usage
 
 ```bash
-# Create a new publications_readers model
-swamp model create @swamp/gcp/readerrevenuesubscriptionlinking/publications_readers my-publications_readers
+# Create a new publications_-_readers_entitlements model
+swamp model create @swamp/gcp/readerrevenuesubscriptionlinking/publications_-_readers_entitlements my-publications_-_readers_entitlements
 
 # Edit the model to configure its properties
-swamp model edit my-publications_readers
+swamp model edit my-publications_-_readers_entitlements
 
 # Create the resource in GCP
-swamp model method run my-publications_readers create
+swamp model method run my-publications_-_readers_entitlements create
 
 # Sync current state from GCP
-swamp model method run my-publications_readers sync
+swamp model method run my-publications_-_readers_entitlements sync
 ```
 
 ## License

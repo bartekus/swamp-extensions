@@ -43,7 +43,7 @@ import {
 import type { AwsCredentials } from "./_lib/aws.ts";
 
 const MountOptionsSchema = z.object({
-  Version: z.enum(["AUTOMATIC", "NFS3", "NFS4_0", "NFS4_1"]).describe(
+  Version: z.enum(["AUTOMATIC", "NFS3", "NFS4_0", "NFS4_1", "NFS4_2"]).describe(
     "The specific NFS version that you want DataSync to use to mount your NFS share.",
   ).optional(),
 });
@@ -175,7 +175,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataSync LocationFSxOpenZFS. Registered at `@swamp/aws/datasync/location-fsx-open-zfs`. */
 export const model = {
   type: "@swamp/aws/datasync/location-fsx-open-zfs",
-  version: "2026.08.17.1",
+  version: "2026.09.17.1",
+  upgrades: [
+    {
+      toVersion: "2026.09.17.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

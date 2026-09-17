@@ -194,6 +194,9 @@ const GlobalArgsSchema = z.object({
       "Output only. [Output Only] The firewall policy ID of the association.",
     ).optional(),
     name: z.string().describe("The name for an association.").optional(),
+    priority: z.number().int().describe(
+      "An integer indicating the priority of an association. The priority must be a positive value between 1 and 2147483647. Firewall Policies are evaluated from highest to lowest priority where 1 is the highest priority and 2147483647 is the lowest priority. The default value is `1000`. If two associations have the same priority then lexicographical order on association names is applied.",
+    ).optional(),
     shortName: z.string().describe(
       "Output only. [Output Only] The short name of the firewall policy of the association.",
     ).optional(),
@@ -526,6 +529,7 @@ const StateSchema = z.object({
     displayName: z.string(),
     firewallPolicyId: z.string(),
     name: z.string(),
+    priority: z.number(),
     shortName: z.string(),
   })).optional(),
   creationTimestamp: z.string().optional(),
@@ -657,6 +661,9 @@ const InputsSchema = z.object({
       "Output only. [Output Only] The firewall policy ID of the association.",
     ).optional(),
     name: z.string().describe("The name for an association.").optional(),
+    priority: z.number().int().describe(
+      "An integer indicating the priority of an association. The priority must be a positive value between 1 and 2147483647. Firewall Policies are evaluated from highest to lowest priority where 1 is the highest priority and 2147483647 is the lowest priority. The default value is `1000`. If two associations have the same priority then lexicographical order on association names is applied.",
+    ).optional(),
     shortName: z.string().describe(
       "Output only. [Output Only] The short name of the firewall policy of the association.",
     ).optional(),
@@ -1009,7 +1016,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine NetworkFirewallPolicies. Registered at `@swamp/gcp/compute/networkfirewallpolicies`. */
 export const model = {
   type: "@swamp/gcp/compute/networkfirewallpolicies",
-  version: "2026.09.07.1",
+  version: "2026.09.17.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1203,6 +1210,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1547,6 +1559,7 @@ export const model = {
         displayName: z.any().optional(),
         firewallPolicyId: z.any().optional(),
         name: z.any().optional(),
+        priority: z.any().optional(),
         shortName: z.any().optional(),
         replaceExistingAssociation: z.any().optional(),
         requestId: z.any().optional(),
@@ -1591,6 +1604,7 @@ export const model = {
           body["firewallPolicyId"] = args["firewallPolicyId"];
         }
         if (args["name"] !== undefined) body["name"] = args["name"];
+        if (args["priority"] !== undefined) body["priority"] = args["priority"];
         if (args["shortName"] !== undefined) {
           body["shortName"] = args["shortName"];
         }

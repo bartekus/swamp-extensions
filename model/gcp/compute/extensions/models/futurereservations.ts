@@ -270,6 +270,9 @@ const GlobalArgsSchema = z.object({
   autoDeleteAutoCreatedReservations: z.boolean().describe(
     "Setting for enabling or disabling automatic deletion for auto-created reservation. If set to true, auto-created reservations will be deleted at Future Reservation's end time (default) or at user's defined timestamp if any of the [auto_created_reservations_delete_time, auto_created_reservations_duration] values is specified. For keeping auto-created reservation indefinitely, this value should be set to false.",
   ).optional(),
+  colocationResource: z.string().describe(
+    "Full or partial URL of an existing future reservation to indicate intent for reserving capacity in the same cluster as the colocation resource.",
+  ).optional(),
   commitmentInfo: z.object({
     commitmentName: z.string().describe(
       "name of the commitment where capacity is being delivered to.",
@@ -469,6 +472,7 @@ const StateSchema = z.object({
     seconds: z.string(),
   }).optional(),
   autoDeleteAutoCreatedReservations: z.boolean().optional(),
+  colocationResource: z.string().optional(),
   commitmentInfo: z.object({
     commitmentName: z.string(),
     commitmentPlan: z.string(),
@@ -669,6 +673,9 @@ const InputsSchema = z.object({
   ).optional(),
   autoDeleteAutoCreatedReservations: z.boolean().describe(
     "Setting for enabling or disabling automatic deletion for auto-created reservation. If set to true, auto-created reservations will be deleted at Future Reservation's end time (default) or at user's defined timestamp if any of the [auto_created_reservations_delete_time, auto_created_reservations_duration] values is specified. For keeping auto-created reservation indefinitely, this value should be set to false.",
+  ).optional(),
+  colocationResource: z.string().describe(
+    "Full or partial URL of an existing future reservation to indicate intent for reserving capacity in the same cluster as the colocation resource.",
   ).optional(),
   commitmentInfo: z.object({
     commitmentName: z.string().describe(
@@ -872,7 +879,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine FutureReservations. Registered at `@swamp/gcp/compute/futurereservations`. */
 export const model = {
   type: "@swamp/gcp/compute/futurereservations",
-  version: "2026.09.07.1",
+  version: "2026.09.17.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1034,6 +1041,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.17.1",
+      description: "Added: colocationResource",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1073,6 +1085,9 @@ export const model = {
         if (g["autoDeleteAutoCreatedReservations"] !== undefined) {
           body["autoDeleteAutoCreatedReservations"] =
             g["autoDeleteAutoCreatedReservations"];
+        }
+        if (g["colocationResource"] !== undefined) {
+          body["colocationResource"] = g["colocationResource"];
         }
         if (g["commitmentInfo"] !== undefined) {
           body["commitmentInfo"] = g["commitmentInfo"];
@@ -1236,6 +1251,9 @@ export const model = {
         if (g["autoDeleteAutoCreatedReservations"] !== undefined) {
           body["autoDeleteAutoCreatedReservations"] =
             g["autoDeleteAutoCreatedReservations"];
+        }
+        if (g["colocationResource"] !== undefined) {
+          body["colocationResource"] = g["colocationResource"];
         }
         if (g["commitmentInfo"] !== undefined) {
           body["commitmentInfo"] = g["commitmentInfo"];

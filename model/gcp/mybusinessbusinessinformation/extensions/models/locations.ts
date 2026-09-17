@@ -227,7 +227,7 @@ const GlobalArgsSchema = z.object({
       "Output only. Indicates whether the location can operate on Health data.",
     ).optional(),
     canOperateLocalPost: z.boolean().describe(
-      "Output only. Indicates if the listing can manage local posts. Deprecated: This field is no longer populated and will be removed in a future version.",
+      "Output only. Deprecated: This field is no longer populated and will be removed in a future version.",
     ).optional(),
     canOperateLodgingData: z.boolean().describe(
       "Output only. Indicates whether the location can operate on Lodging data.",
@@ -244,8 +244,9 @@ const GlobalArgsSchema = z.object({
     hasVoiceOfMerchant: z.boolean().describe(
       "Output only. Indicates if the listing has Voice of Merchant. If this boolean is false, you should call the locations.getVoiceOfMerchantState API to get details as to why they do not have Voice of Merchant.",
     ).optional(),
-    isParticularlyPersonalPlace: z.boolean().describe("Output only.")
-      .optional(),
+    isParticularlyPersonalPlace: z.boolean().describe(
+      "Output only. Indicates whether the location is classified as a particularly personal place. This means there are restrictions on Location History features. If you believe this was a mistake, see the [help center article](https://support.google.com/business/answer/3480441).",
+    ).optional(),
     mapsUri: z.string().describe("Output only. A link to the location on Maps.")
       .optional(),
     newReviewUri: z.string().describe(
@@ -324,7 +325,7 @@ const GlobalArgsSchema = z.object({
     "Optional. More hours for a business's different departments or specific customers.",
   ).optional(),
   name: z.string().describe(
-    "Google identifier for this location in the form: `locations/{location_id}`.",
+    "Identifier. Google identifier for this location in the form: `locations/{location_id}`.",
   ).optional(),
   openInfo: z.object({
     canReopen: z.boolean().describe(
@@ -444,10 +445,10 @@ const GlobalArgsSchema = z.object({
         "INDEPENDENT_ESTABLISHMENT_IN",
       ]).describe("Required. The type of the relationship.").optional(),
     })).describe(
-      "The list of children locations that this location has relations with.",
+      "Optional. The list of children locations that this location has relations with.",
     ).optional(),
     parentChain: z.string().describe(
-      "The resource name of the Chain that this location is member of. How to find Chain ID",
+      "Optional. The resource name of the Chain that this location is member of. How to find Chain ID",
     ).optional(),
     parentLocation: z.object({
       placeId: z.string().describe(
@@ -458,8 +459,9 @@ const GlobalArgsSchema = z.object({
         "DEPARTMENT_OF",
         "INDEPENDENT_ESTABLISHMENT_IN",
       ]).describe("Required. The type of the relationship.").optional(),
-    }).describe("The parent location that this location has relations with.")
-      .optional(),
+    }).describe(
+      "Optional. The parent location that this location has relations with.",
+    ).optional(),
   }).describe("Optional. All locations and chain related to this one.")
     .optional(),
   serviceArea: z.object({
@@ -478,10 +480,10 @@ const GlobalArgsSchema = z.object({
           "Required. The localized name of the place. For example, `Scottsdale, AZ`.",
         ).optional(),
       })).describe(
-        "The areas represented by place IDs. Limited to a maximum of 20 places.",
+        "Optional. The areas represented by place IDs. Limited to a maximum of 20 places.",
       ).optional(),
     }).describe(
-      "The area that this business serves defined through a set of places.",
+      "Optional. The area that this business serves defined through a set of places.",
     ).optional(),
     regionCode: z.string().describe(
       'Immutable. CLDR region code of the country/region that this service area business is based in. See http://cldr.unicode.org/ and http://www.unicode.org/cldr/charts/30/supplemental/territory_information.html for details. Example: "CH" for Switzerland. This field is required for CUSTOMER_LOCATION_ONLY businesses, and is ignored otherwise. The region specified here can be different from regions for the areas that this business serves (e.g. service area businesses that provide services in regions other than the one that they are based in). If this location requires verification after creation, the address provided for verification purposes *must* be located within this region, and the business owner or their authorized representative *must* be able to receive postal mail at the provided verification address.',
@@ -964,7 +966,7 @@ const InputsSchema = z.object({
       "Output only. Indicates whether the location can operate on Health data.",
     ).optional(),
     canOperateLocalPost: z.boolean().describe(
-      "Output only. Indicates if the listing can manage local posts. Deprecated: This field is no longer populated and will be removed in a future version.",
+      "Output only. Deprecated: This field is no longer populated and will be removed in a future version.",
     ).optional(),
     canOperateLodgingData: z.boolean().describe(
       "Output only. Indicates whether the location can operate on Lodging data.",
@@ -981,8 +983,9 @@ const InputsSchema = z.object({
     hasVoiceOfMerchant: z.boolean().describe(
       "Output only. Indicates if the listing has Voice of Merchant. If this boolean is false, you should call the locations.getVoiceOfMerchantState API to get details as to why they do not have Voice of Merchant.",
     ).optional(),
-    isParticularlyPersonalPlace: z.boolean().describe("Output only.")
-      .optional(),
+    isParticularlyPersonalPlace: z.boolean().describe(
+      "Output only. Indicates whether the location is classified as a particularly personal place. This means there are restrictions on Location History features. If you believe this was a mistake, see the [help center article](https://support.google.com/business/answer/3480441).",
+    ).optional(),
     mapsUri: z.string().describe("Output only. A link to the location on Maps.")
       .optional(),
     newReviewUri: z.string().describe(
@@ -1061,7 +1064,7 @@ const InputsSchema = z.object({
     "Optional. More hours for a business's different departments or specific customers.",
   ).optional(),
   name: z.string().describe(
-    "Google identifier for this location in the form: `locations/{location_id}`.",
+    "Identifier. Google identifier for this location in the form: `locations/{location_id}`.",
   ).optional(),
   openInfo: z.object({
     canReopen: z.boolean().describe(
@@ -1181,10 +1184,10 @@ const InputsSchema = z.object({
         "INDEPENDENT_ESTABLISHMENT_IN",
       ]).describe("Required. The type of the relationship.").optional(),
     })).describe(
-      "The list of children locations that this location has relations with.",
+      "Optional. The list of children locations that this location has relations with.",
     ).optional(),
     parentChain: z.string().describe(
-      "The resource name of the Chain that this location is member of. How to find Chain ID",
+      "Optional. The resource name of the Chain that this location is member of. How to find Chain ID",
     ).optional(),
     parentLocation: z.object({
       placeId: z.string().describe(
@@ -1195,8 +1198,9 @@ const InputsSchema = z.object({
         "DEPARTMENT_OF",
         "INDEPENDENT_ESTABLISHMENT_IN",
       ]).describe("Required. The type of the relationship.").optional(),
-    }).describe("The parent location that this location has relations with.")
-      .optional(),
+    }).describe(
+      "Optional. The parent location that this location has relations with.",
+    ).optional(),
   }).describe("Optional. All locations and chain related to this one.")
     .optional(),
   serviceArea: z.object({
@@ -1215,10 +1219,10 @@ const InputsSchema = z.object({
           "Required. The localized name of the place. For example, `Scottsdale, AZ`.",
         ).optional(),
       })).describe(
-        "The areas represented by place IDs. Limited to a maximum of 20 places.",
+        "Optional. The areas represented by place IDs. Limited to a maximum of 20 places.",
       ).optional(),
     }).describe(
-      "The area that this business serves defined through a set of places.",
+      "Optional. The area that this business serves defined through a set of places.",
     ).optional(),
     regionCode: z.string().describe(
       'Immutable. CLDR region code of the country/region that this service area business is based in. See http://cldr.unicode.org/ and http://www.unicode.org/cldr/charts/30/supplemental/territory_information.html for details. Example: "CH" for Switzerland. This field is required for CUSTOMER_LOCATION_ONLY businesses, and is ignored otherwise. The region specified here can be different from regions for the areas that this business serves (e.g. service area businesses that provide services in regions other than the one that they are based in). If this location requires verification after creation, the address provided for verification purposes *must* be located within this region, and the business owner or their authorized representative *must* be able to receive postal mail at the provided verification address.',
@@ -1416,7 +1420,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud My Business Business Information Locations. Registered at `@swamp/gcp/mybusinessbusinessinformation/locations`. */
 export const model = {
   type: "@swamp/gcp/mybusinessbusinessinformation/locations",
-  version: "2026.09.07.1",
+  version: "2026.09.17.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1585,6 +1589,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

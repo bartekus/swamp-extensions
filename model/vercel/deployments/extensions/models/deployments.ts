@@ -39,6 +39,9 @@ const GlobalArgsSchema = z.object({
   slug: z.string().optional().describe(
     "Vercel team slug (alternative to teamId)",
   ),
+  buildMachine: z.enum(["turbo"]).describe(
+    "Selects a custom build machine for this deployment without changing project settings.",
+  ).optional(),
   customEnvironmentSlugOrId: z.string().describe(
     "The slug or ID of a custom environment to deploy to, overriding the default target environment. When omitted, the deployment targets the environment inferred from the branch (production or preview).",
   ).optional(),
@@ -206,6 +209,7 @@ type ResourceData = z.infer<typeof ResourceSchema>;
 const InputsSchema = z.object({
   teamId: z.string().optional(),
   slug: z.string().optional(),
+  buildMachine: z.enum(["turbo"]).optional(),
   customEnvironmentSlugOrId: z.string().optional(),
   deploymentId: z.string().optional(),
   files: z.array(z.object({
@@ -342,7 +346,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Deployments. Registered at `@swamp/vercel/deployments/deployments`. */
 export const model = {
   type: "@swamp/vercel/deployments/deployments",
-  version: "2026.09.12.1",
+  version: "2026.09.17.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -394,6 +398,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.17.1",
+      description: "Added: buildMachine",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -413,6 +422,7 @@ export const model = {
         const g = context.globalArgs;
         const endpoint = "/v13/deployments";
         const body: Record<string, unknown> = {};
+        if (g.buildMachine !== undefined) body.buildMachine = g.buildMachine;
         if (g.customEnvironmentSlugOrId !== undefined) {
           body.customEnvironmentSlugOrId = g.customEnvironmentSlugOrId;
         }
@@ -485,6 +495,9 @@ export const model = {
         const g = context.globalArgs;
         const endpoint = "/v7/deployments";
         const filters: [string, string][] = [];
+        if (g.buildMachine !== undefined) {
+          filters.push(["buildMachine", String(g.buildMachine)]);
+        }
         if (g.customEnvironmentSlugOrId !== undefined) {
           filters.push([
             "customEnvironmentSlugOrId",

@@ -48,7 +48,7 @@ const GlobalArgsSchema = z.object({
     type: z.string().optional(),
     url: z.string().optional(),
   })).describe(
-    "Adds a `<script>` tag into the page with the desired URL or content.",
+    "Adds a script element into the page with the desired URL or content.",
   ).optional(),
   addStyleTag: z.array(z.object({
     content: z.string().optional(),
@@ -298,7 +298,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Crawl. Registered at `@swamp/cloudflare/browser-rendering/crawl`. */
 export const model = {
   type: "@swamp/cloudflare/browser-rendering/crawl",
-  version: "2026.08.27.1",
+  version: "2026.09.17.1",
   upgrades: [
     {
       toVersion: "2026.08.15.1",
@@ -308,6 +308,11 @@ export const model = {
     {
       toVersion: "2026.08.27.1",
       description: "Added: contentUse",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.17.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

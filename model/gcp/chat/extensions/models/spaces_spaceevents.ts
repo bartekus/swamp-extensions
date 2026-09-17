@@ -709,6 +709,7 @@ const StateSchema = z.object({
           accessPermissionSettings: z.object({
             discoverSpaceSetting: z.unknown(),
             joinSpaceSetting: z.unknown(),
+            viewSpaceMembershipSetting: z.unknown(),
           }),
           accessState: z.string(),
           audience: z.string(),
@@ -763,6 +764,11 @@ const StateSchema = z.object({
             membersAllowed: z.unknown(),
           }),
           useAtMentionAll: z.object({
+            assistantManagersAllowed: z.unknown(),
+            managersAllowed: z.unknown(),
+            membersAllowed: z.unknown(),
+          }),
+          viewSpaceMembership: z.object({
             assistantManagersAllowed: z.unknown(),
             managersAllowed: z.unknown(),
             membersAllowed: z.unknown(),
@@ -946,6 +952,7 @@ const StateSchema = z.object({
           accessPermissionSettings: z.object({
             discoverSpaceSetting: z.unknown(),
             joinSpaceSetting: z.unknown(),
+            viewSpaceMembershipSetting: z.unknown(),
           }),
           accessState: z.string(),
           audience: z.string(),
@@ -1000,6 +1007,11 @@ const StateSchema = z.object({
             membersAllowed: z.unknown(),
           }),
           useAtMentionAll: z.object({
+            assistantManagersAllowed: z.unknown(),
+            managersAllowed: z.unknown(),
+            membersAllowed: z.unknown(),
+          }),
+          viewSpaceMembership: z.object({
             assistantManagersAllowed: z.unknown(),
             managersAllowed: z.unknown(),
             membersAllowed: z.unknown(),
@@ -1183,6 +1195,7 @@ const StateSchema = z.object({
           accessPermissionSettings: z.object({
             discoverSpaceSetting: z.unknown(),
             joinSpaceSetting: z.unknown(),
+            viewSpaceMembershipSetting: z.unknown(),
           }),
           accessState: z.string(),
           audience: z.string(),
@@ -1237,6 +1250,11 @@ const StateSchema = z.object({
             membersAllowed: z.unknown(),
           }),
           useAtMentionAll: z.object({
+            assistantManagersAllowed: z.unknown(),
+            managersAllowed: z.unknown(),
+            membersAllowed: z.unknown(),
+          }),
+          viewSpaceMembership: z.object({
             assistantManagersAllowed: z.unknown(),
             managersAllowed: z.unknown(),
             membersAllowed: z.unknown(),
@@ -1380,6 +1398,7 @@ const StateSchema = z.object({
           replyMessages: z.unknown(),
           toggleHistory: z.unknown(),
           useAtMentionAll: z.unknown(),
+          viewSpaceMembership: z.unknown(),
         }),
         predefinedPermissionSettings: z.string(),
         singleUserBotDm: z.boolean(),
@@ -1404,6 +1423,9 @@ const StateSchema = z.object({
             principals: z.unknown(),
           }),
           joinSpaceSetting: z.object({
+            principals: z.unknown(),
+          }),
+          viewSpaceMembershipSetting: z.object({
             principals: z.unknown(),
           }),
         }),
@@ -1460,6 +1482,11 @@ const StateSchema = z.object({
           membersAllowed: z.boolean(),
         }),
         useAtMentionAll: z.object({
+          assistantManagersAllowed: z.boolean(),
+          managersAllowed: z.boolean(),
+          membersAllowed: z.boolean(),
+        }),
+        viewSpaceMembership: z.object({
           assistantManagersAllowed: z.boolean(),
           managersAllowed: z.boolean(),
           membersAllowed: z.boolean(),
@@ -1522,7 +1549,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Chat Spaces.SpaceEvents. Registered at `@swamp/gcp/chat/spaces-spaceevents`. */
 export const model = {
   type: "@swamp/gcp/chat/spaces-spaceevents",
-  version: "2026.08.25.1",
+  version: "2026.09.17.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -1686,6 +1713,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
