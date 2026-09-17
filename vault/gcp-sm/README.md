@@ -34,6 +34,7 @@ project:
 - `secretmanager.secrets.delete`
 - `secretmanager.versions.add`
 - `secretmanager.versions.access`
+- `secretmanager.versions.list` (for hygiene inventory)
 
 ## Usage
 
@@ -84,6 +85,26 @@ swamp vault annotate my-gcp-sm API_KEY \
   --label env=prod --label team=infra
 
 swamp vault inspect my-gcp-sm API_KEY --json
+```
+
+## Hygiene Inventory
+
+The `inventoryHygieneMetadata` method produces a metadata-only snapshot of all
+secrets and their versions across one or more GCP projects. It collects rotation
+schedules, version state, creation times, labels, and annotations without ever
+calling `versions.access` or persisting payload fields.
+
+The snapshot supports reporting rotation-notification gaps and
+latest-enabled-version age without touching actual secret payloads. It follows
+all pagination pages and fails immediately on permission or rate-limit errors.
+
+```typescript
+const snapshot = await provider.inventoryHygieneMetadata([
+  "project-a",
+  "project-b",
+]);
+// snapshot.projects[0].secrets[0].rotation?.nextRotationTime
+// snapshot.projects[0].secrets[0].versions[0].state  // "ENABLED"
 ```
 
 ## Emulator Support

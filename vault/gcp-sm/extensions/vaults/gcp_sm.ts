@@ -122,6 +122,39 @@ export interface VaultAnnotationProvider {
   listAnnotations(): Promise<Map<string, VaultAnnotation>>;
 }
 
+export interface HygieneVersionMetadata {
+  name: string;
+  state: string;
+  createTime: string | undefined;
+  destroyTime: string | undefined;
+  scheduledDestroyTime: string | undefined;
+}
+
+export interface HygieneSecretMetadata {
+  name: string;
+  createTime: string | undefined;
+  labels: Record<string, string>;
+  annotations: Record<string, string>;
+  rotation: {
+    nextRotationTime: string | undefined;
+    rotationPeriod: string | undefined;
+  } | undefined;
+  expireTime: string | undefined;
+  versionDestroyTtl: string | undefined;
+  versions: HygieneVersionMetadata[];
+}
+
+export interface HygieneProjectSnapshot {
+  projectId: string;
+  secrets: HygieneSecretMetadata[];
+}
+
+export interface HygieneMetadataSnapshot {
+  projects: HygieneProjectSnapshot[];
+  snapshotTimestamp: string;
+  extensionVersion: string;
+}
+
 const SWAMP_ANNOTATION_PREFIX = "swamp-";
 const SWAMP_NOTES_KEY = "swamp-notes";
 const SWAMP_URL_KEY = "swamp-url";
@@ -149,6 +182,25 @@ function toGcpSecretId(key: string): string {
 interface SecretMetadata {
   annotations?: Record<string, string>;
   labels?: Record<string, string>;
+}
+
+interface SecretListEntry extends SecretMetadata {
+  name?: string;
+  createTime?: string;
+  rotation?: {
+    nextRotationTime?: string;
+    rotationPeriod?: string;
+  };
+  expireTime?: string;
+  versionDestroyTtl?: string;
+}
+
+interface VersionListEntry {
+  name?: string;
+  state?: string;
+  createTime?: string;
+  destroyTime?: string;
+  scheduledDestroyTime?: string;
 }
 
 function readSwampAnnotation(secret: SecretMetadata): {
@@ -450,6 +502,149 @@ export class GcpSmVaultProvider
         span.end();
       }
     });
+  }
+
+  async inventoryHygieneMetadata(
+    projects: string[],
+  ): Promise<HygieneMetadataSnapshot> {
+    return await getTracer().startActiveSpan(
+      "gcp-sm inventoryHygieneMetadata",
+      async (span) => {
+        span.setAttributes({
+          [Attr.RPC_SYSTEM]: "gcp",
+          [Attr.RPC_SERVICE]: "SecretManager",
+          [Attr.RPC_METHOD]: "inventoryHygieneMetadata",
+          [Attr.VAULT_NAME]: this.vaultName,
+        });
+        try {
+          const projectSnapshots: HygieneProjectSnapshot[] = [];
+
+          for (const projectId of projects) {
+            const secrets = await this.listSecretsMetadata(projectId);
+            const hygieneSecrets: HygieneSecretMetadata[] = [];
+
+            for (const secret of secrets) {
+              const secretName = secret.name ?? "";
+              const shortId = secretName.split("/").pop() ?? "";
+
+              if (this.prefix && !shortId.startsWith(this.prefix)) continue;
+
+              const versions = await this.listVersionsMetadata(
+                secretName,
+              );
+
+              hygieneSecrets.push({
+                name: secretName,
+                createTime: secret.createTime,
+                labels: secret.labels ?? {},
+                annotations: secret.annotations ?? {},
+                rotation: secret.rotation
+                  ? {
+                    nextRotationTime: secret.rotation.nextRotationTime,
+                    rotationPeriod: secret.rotation.rotationPeriod,
+                  }
+                  : undefined,
+                expireTime: secret.expireTime,
+                versionDestroyTtl: secret.versionDestroyTtl,
+                versions,
+              });
+            }
+
+            projectSnapshots.push({
+              projectId,
+              secrets: hygieneSecrets,
+            });
+          }
+
+          return {
+            projects: projectSnapshots,
+            snapshotTimestamp: new Date().toISOString(),
+            extensionVersion: vault.type,
+          };
+        } catch (err) {
+          if (err instanceof Error) {
+            span.setStatus({
+              code: SpanStatusCode.ERROR,
+              message: err.message,
+            });
+            span.recordException(err);
+            span.setAttribute(Attr.ERROR_TYPE, err.name);
+          }
+          throw err;
+        } finally {
+          span.end();
+        }
+      },
+    );
+  }
+
+  private async listSecretsMetadata(
+    projectId: string,
+  ): Promise<SecretListEntry[]> {
+    const secrets: SecretListEntry[] = [];
+    let pageToken: string | undefined;
+
+    do {
+      const params: string[] = [];
+      if (pageToken) {
+        params.push(`pageToken=${encodeURIComponent(pageToken)}`);
+      }
+      if (this.prefix) {
+        params.push(`filter=${encodeURIComponent(`name:${this.prefix}*`)}`);
+      }
+      const qs = params.length > 0 ? `?${params.join("&")}` : "";
+      const data = await this.apiCallJson(
+        "GET",
+        `projects/${projectId}/secrets${qs}`,
+        undefined,
+        "listSecrets",
+      ) as {
+        secrets?: SecretListEntry[];
+        nextPageToken?: string;
+      };
+      for (const secret of data.secrets ?? []) {
+        secrets.push(secret);
+      }
+      pageToken = data.nextPageToken;
+    } while (pageToken);
+
+    return secrets;
+  }
+
+  private async listVersionsMetadata(
+    secretResourceName: string,
+  ): Promise<HygieneVersionMetadata[]> {
+    const versions: HygieneVersionMetadata[] = [];
+    let pageToken: string | undefined;
+
+    do {
+      const params: string[] = [];
+      if (pageToken) {
+        params.push(`pageToken=${encodeURIComponent(pageToken)}`);
+      }
+      const qs = params.length > 0 ? `?${params.join("&")}` : "";
+      const data = await this.apiCallJson(
+        "GET",
+        `${secretResourceName}/versions${qs}`,
+        undefined,
+        "listSecretVersions",
+      ) as {
+        versions?: VersionListEntry[];
+        nextPageToken?: string;
+      };
+      for (const v of data.versions ?? []) {
+        versions.push({
+          name: v.name ?? "",
+          state: v.state ?? "STATE_UNSPECIFIED",
+          createTime: v.createTime,
+          destroyTime: v.destroyTime,
+          scheduledDestroyTime: v.scheduledDestroyTime,
+        });
+      }
+      pageToken = data.nextPageToken;
+    } while (pageToken);
+
+    return versions;
   }
 
   async delete(secretKey: string): Promise<void> {

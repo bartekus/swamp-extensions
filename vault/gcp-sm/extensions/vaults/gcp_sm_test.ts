@@ -821,3 +821,547 @@ Deno.test({
     await assertRejects(() => provider.get("delete-me"));
   },
 });
+
+// --- Hygiene Inventory Tests ---
+
+interface HygieneSecretState {
+  labels: Record<string, string>;
+  annotations: Record<string, string>;
+  createTime: string;
+  rotation?: { nextRotationTime?: string; rotationPeriod?: string };
+  expireTime?: string;
+  versionDestroyTtl?: string;
+  versions: Array<{
+    name: string;
+    state: string;
+    createTime: string;
+    destroyTime?: string;
+    scheduledDestroyTime?: string;
+  }>;
+}
+
+interface HygieneMockOverrides {
+  listSecrets?: { status: number; body: unknown };
+  listVersions?: { status: number; body: unknown };
+}
+
+function startHygieneMockServer(
+  projectSecrets: Record<string, Record<string, HygieneSecretState>>,
+  overrides: HygieneMockOverrides = {},
+): {
+  port: number;
+  server: Deno.HttpServer;
+  accessCalled: { count: number };
+} {
+  const accessCalled = { count: 0 };
+
+  const server = Deno.serve({ port: 0, onListen: () => {} }, (req) => {
+    const url = new URL(req.url);
+    const path = url.pathname;
+    const method = req.method;
+
+    // GET /v1/projects/{project}/secrets — list secrets
+    const listSecretsMatch = path.match(
+      /^\/v1\/projects\/([^/]+)\/secrets$/,
+    );
+    if (method === "GET" && listSecretsMatch) {
+      if (overrides.listSecrets) {
+        return Response.json(overrides.listSecrets.body, {
+          status: overrides.listSecrets.status,
+        });
+      }
+      const projectId = listSecretsMatch[1];
+      const secrets = projectSecrets[projectId];
+      if (!secrets) {
+        return Response.json(
+          {
+            error: {
+              code: 403,
+              message: "Permission denied",
+              status: "PERMISSION_DENIED",
+            },
+          },
+          { status: 403 },
+        );
+      }
+      const pageToken = url.searchParams.get("pageToken");
+      const entries = Object.entries(secrets);
+      const pageSize = 2;
+      const startIdx = pageToken ? parseInt(pageToken, 10) : 0;
+      const pageEntries = entries.slice(startIdx, startIdx + pageSize);
+      const nextIdx = startIdx + pageSize;
+      const secretList = pageEntries.map(([id, state]) => ({
+        name: `projects/${projectId}/secrets/${id}`,
+        createTime: state.createTime,
+        labels: state.labels,
+        annotations: state.annotations,
+        rotation: state.rotation,
+        expireTime: state.expireTime,
+        versionDestroyTtl: state.versionDestroyTtl,
+      }));
+      return Response.json({
+        secrets: secretList,
+        ...(nextIdx < entries.length ? { nextPageToken: String(nextIdx) } : {}),
+      });
+    }
+
+    // GET /v1/projects/{project}/secrets/{secret}/versions — list versions
+    const listVersionsMatch = path.match(
+      /^\/v1\/projects\/([^/]+)\/secrets\/([^/]+)\/versions$/,
+    );
+    if (method === "GET" && listVersionsMatch) {
+      if (overrides.listVersions) {
+        return Response.json(overrides.listVersions.body, {
+          status: overrides.listVersions.status,
+        });
+      }
+      const projectId = listVersionsMatch[1];
+      const secretId = listVersionsMatch[2];
+      const secrets = projectSecrets[projectId];
+      const secret = secrets?.[secretId];
+      if (!secret) {
+        return Response.json(
+          { error: { code: 404, message: "Not found", status: "NOT_FOUND" } },
+          { status: 404 },
+        );
+      }
+      const pageToken = url.searchParams.get("pageToken");
+      const pageSize = 2;
+      const startIdx = pageToken ? parseInt(pageToken, 10) : 0;
+      const pageEntries = secret.versions.slice(startIdx, startIdx + pageSize);
+      const nextIdx = startIdx + pageSize;
+      return Response.json({
+        versions: pageEntries,
+        ...(nextIdx < secret.versions.length
+          ? { nextPageToken: String(nextIdx) }
+          : {}),
+      });
+    }
+
+    // GET /v1/projects/{project}/secrets/{secret}/versions/{version}:access
+    const accessMatch = path.match(
+      /^\/v1\/projects\/[^/]+\/secrets\/[^/]+\/versions\/[^/:]+:access$/,
+    );
+    if (method === "GET" && accessMatch) {
+      accessCalled.count++;
+      return Response.json(
+        { error: { code: 500, message: "Should not be called" } },
+        { status: 500 },
+      );
+    }
+
+    return Response.json({ error: { code: 404 } }, { status: 404 });
+  });
+
+  const addr = server.addr as Deno.NetAddr;
+  return { port: addr.port, server, accessCalled };
+}
+
+function hygieneMockFetchFn(port: number) {
+  return async (
+    url: string,
+    opts: { method: string; body?: unknown },
+  ): Promise<Response> => {
+    const redirected = url.replace(
+      /^https:\/\/secretmanager\.googleapis\.com/,
+      `http://localhost:${port}`,
+    );
+    return await fetch(redirected, {
+      method: opts.method,
+      headers: { "Content-Type": "application/json" },
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    });
+  };
+}
+
+Deno.test(
+  "inventoryHygieneMetadata: happy path with two projects",
+  async () => {
+    const projectSecrets: Record<string, Record<string, HygieneSecretState>> = {
+      "proj-a": {
+        "api-key": {
+          labels: { env: "prod" },
+          annotations: { owner: "infra" },
+          createTime: "2026-01-01T00:00:00Z",
+          rotation: {
+            nextRotationTime: "2026-07-01T00:00:00Z",
+            rotationPeriod: "7776000s",
+          },
+          expireTime: "2027-01-01T00:00:00Z",
+          versionDestroyTtl: "86400s",
+          versions: [
+            {
+              name: "projects/proj-a/secrets/api-key/versions/1",
+              state: "ENABLED",
+              createTime: "2026-01-01T00:00:00Z",
+            },
+            {
+              name: "projects/proj-a/secrets/api-key/versions/2",
+              state: "DISABLED",
+              createTime: "2026-03-01T00:00:00Z",
+            },
+          ],
+        },
+      },
+      "proj-b": {
+        "db-pass": {
+          labels: {},
+          annotations: {},
+          createTime: "2026-06-01T00:00:00Z",
+          versions: [
+            {
+              name: "projects/proj-b/secrets/db-pass/versions/1",
+              state: "ENABLED",
+              createTime: "2026-06-01T00:00:00Z",
+            },
+          ],
+        },
+      },
+    };
+
+    const { port, server, accessCalled } = startHygieneMockServer(
+      projectSecrets,
+    );
+    try {
+      const provider = _createTestProvider(
+        "test-vault",
+        { project_id: "proj-a" },
+        "proj-a",
+        hygieneMockFetchFn(port),
+      );
+      const snapshot = await provider.inventoryHygieneMetadata([
+        "proj-a",
+        "proj-b",
+      ]);
+
+      assertEquals(snapshot.projects.length, 2);
+      assertEquals(snapshot.extensionVersion, "@swamp/gcp-sm");
+
+      const projA = snapshot.projects[0];
+      assertEquals(projA.projectId, "proj-a");
+      assertEquals(projA.secrets.length, 1);
+      assertEquals(projA.secrets[0].name, "projects/proj-a/secrets/api-key");
+      assertEquals(projA.secrets[0].labels, { env: "prod" });
+      assertEquals(
+        projA.secrets[0].rotation?.nextRotationTime,
+        "2026-07-01T00:00:00Z",
+      );
+      assertEquals(projA.secrets[0].rotation?.rotationPeriod, "7776000s");
+      assertEquals(projA.secrets[0].expireTime, "2027-01-01T00:00:00Z");
+      assertEquals(projA.secrets[0].versionDestroyTtl, "86400s");
+      assertEquals(projA.secrets[0].versions.length, 2);
+      assertEquals(projA.secrets[0].versions[0].state, "ENABLED");
+      assertEquals(projA.secrets[0].versions[1].state, "DISABLED");
+
+      const projB = snapshot.projects[1];
+      assertEquals(projB.projectId, "proj-b");
+      assertEquals(projB.secrets.length, 1);
+      assertEquals(projB.secrets[0].versions.length, 1);
+      assertEquals(projB.secrets[0].rotation, undefined);
+
+      assertEquals(accessCalled.count, 0);
+    } finally {
+      await server.shutdown();
+    }
+  },
+);
+
+Deno.test(
+  "inventoryHygieneMetadata: follows all pagination pages",
+  async () => {
+    const projectSecrets: Record<string, Record<string, HygieneSecretState>> = {
+      "paginated-proj": {
+        "secret-1": {
+          labels: {},
+          annotations: {},
+          createTime: "2026-01-01T00:00:00Z",
+          versions: [
+            {
+              name: "v1",
+              state: "ENABLED",
+              createTime: "2026-01-01T00:00:00Z",
+            },
+            {
+              name: "v2",
+              state: "ENABLED",
+              createTime: "2026-02-01T00:00:00Z",
+            },
+            {
+              name: "v3",
+              state: "DESTROYED",
+              createTime: "2026-03-01T00:00:00Z",
+              destroyTime: "2026-04-01T00:00:00Z",
+            },
+          ],
+        },
+        "secret-2": {
+          labels: {},
+          annotations: {},
+          createTime: "2026-02-01T00:00:00Z",
+          versions: [
+            {
+              name: "v1",
+              state: "ENABLED",
+              createTime: "2026-02-01T00:00:00Z",
+            },
+          ],
+        },
+        "secret-3": {
+          labels: {},
+          annotations: {},
+          createTime: "2026-03-01T00:00:00Z",
+          versions: [],
+        },
+      },
+    };
+
+    const { port, server } = startHygieneMockServer(projectSecrets);
+    try {
+      const provider = _createTestProvider(
+        "test-vault",
+        { project_id: "paginated-proj" },
+        "paginated-proj",
+        hygieneMockFetchFn(port),
+      );
+      const snapshot = await provider.inventoryHygieneMetadata([
+        "paginated-proj",
+      ]);
+
+      // pageSize=2, so 3 secrets requires 2 pages
+      assertEquals(snapshot.projects[0].secrets.length, 3);
+      // 3 versions with pageSize=2 requires 2 pages
+      assertEquals(snapshot.projects[0].secrets[0].versions.length, 3);
+      assertEquals(
+        snapshot.projects[0].secrets[0].versions[2].state,
+        "DESTROYED",
+      );
+      assertEquals(
+        snapshot.projects[0].secrets[0].versions[2].destroyTime,
+        "2026-04-01T00:00:00Z",
+      );
+    } finally {
+      await server.shutdown();
+    }
+  },
+);
+
+Deno.test(
+  "inventoryHygieneMetadata: throws on permission error",
+  async () => {
+    const { port, server } = startHygieneMockServer(
+      {},
+      {
+        listSecrets: {
+          status: 403,
+          body: {
+            error: {
+              code: 403,
+              message: "Permission denied",
+              status: "PERMISSION_DENIED",
+            },
+          },
+        },
+      },
+    );
+    try {
+      const provider = _createTestProvider(
+        "test-vault",
+        { project_id: "forbidden-proj" },
+        "forbidden-proj",
+        hygieneMockFetchFn(port),
+      );
+      await assertRejects(
+        () => provider.inventoryHygieneMetadata(["forbidden-proj"]),
+        GcpSmOperationError,
+      );
+    } finally {
+      await server.shutdown();
+    }
+  },
+);
+
+Deno.test(
+  "inventoryHygieneMetadata: throws on rate limit",
+  async () => {
+    const { port, server } = startHygieneMockServer(
+      {},
+      {
+        listSecrets: {
+          status: 429,
+          body: {
+            error: {
+              code: 429,
+              message: "Resource exhausted",
+              status: "RESOURCE_EXHAUSTED",
+            },
+          },
+        },
+      },
+    );
+    try {
+      const provider = _createTestProvider(
+        "test-vault",
+        { project_id: "throttled-proj" },
+        "throttled-proj",
+        hygieneMockFetchFn(port),
+      );
+      await assertRejects(
+        () => provider.inventoryHygieneMetadata(["throttled-proj"]),
+        GcpSmOperationError,
+      );
+    } finally {
+      await server.shutdown();
+    }
+  },
+);
+
+Deno.test(
+  "inventoryHygieneMetadata: empty project returns empty secrets",
+  async () => {
+    const projectSecrets: Record<string, Record<string, HygieneSecretState>> = {
+      "empty-proj": {},
+    };
+
+    const { port, server } = startHygieneMockServer(projectSecrets);
+    try {
+      const provider = _createTestProvider(
+        "test-vault",
+        { project_id: "empty-proj" },
+        "empty-proj",
+        hygieneMockFetchFn(port),
+      );
+      const snapshot = await provider.inventoryHygieneMetadata(["empty-proj"]);
+      assertEquals(snapshot.projects.length, 1);
+      assertEquals(snapshot.projects[0].secrets.length, 0);
+    } finally {
+      await server.shutdown();
+    }
+  },
+);
+
+Deno.test(
+  "inventoryHygieneMetadata: prefix filtering excludes non-matching secrets",
+  async () => {
+    const projectSecrets: Record<string, Record<string, HygieneSecretState>> = {
+      "prefix-proj": {
+        "dev-api-key": {
+          labels: {},
+          annotations: {},
+          createTime: "2026-01-01T00:00:00Z",
+          versions: [
+            {
+              name: "v1",
+              state: "ENABLED",
+              createTime: "2026-01-01T00:00:00Z",
+            },
+          ],
+        },
+        "prod-db-pass": {
+          labels: {},
+          annotations: {},
+          createTime: "2026-02-01T00:00:00Z",
+          versions: [
+            {
+              name: "v1",
+              state: "ENABLED",
+              createTime: "2026-02-01T00:00:00Z",
+            },
+          ],
+        },
+      },
+    };
+
+    const { port, server } = startHygieneMockServer(projectSecrets);
+    try {
+      const provider = _createTestProvider(
+        "test-vault",
+        { project_id: "prefix-proj", secret_prefix: "dev-" },
+        "prefix-proj",
+        hygieneMockFetchFn(port),
+      );
+      const snapshot = await provider.inventoryHygieneMetadata(["prefix-proj"]);
+      assertEquals(snapshot.projects[0].secrets.length, 1);
+      assertEquals(
+        snapshot.projects[0].secrets[0].name,
+        "projects/prefix-proj/secrets/dev-api-key",
+      );
+    } finally {
+      await server.shutdown();
+    }
+  },
+);
+
+Deno.test(
+  "inventoryHygieneMetadata: never calls versions.access",
+  async () => {
+    const projectSecrets: Record<string, Record<string, HygieneSecretState>> = {
+      "access-check-proj": {
+        "secret-1": {
+          labels: {},
+          annotations: {},
+          createTime: "2026-01-01T00:00:00Z",
+          versions: [
+            {
+              name: "v1",
+              state: "ENABLED",
+              createTime: "2026-01-01T00:00:00Z",
+            },
+          ],
+        },
+      },
+    };
+
+    const { port, server, accessCalled } = startHygieneMockServer(
+      projectSecrets,
+    );
+    try {
+      const provider = _createTestProvider(
+        "test-vault",
+        { project_id: "access-check-proj" },
+        "access-check-proj",
+        hygieneMockFetchFn(port),
+      );
+      await provider.inventoryHygieneMetadata(["access-check-proj"]);
+      assertEquals(accessCalled.count, 0);
+    } finally {
+      await server.shutdown();
+    }
+  },
+);
+
+Deno.test(
+  "inventoryHygieneMetadata: handles malformed versions.list response",
+  async () => {
+    const projectSecrets: Record<string, Record<string, HygieneSecretState>> = {
+      "malformed-proj": {
+        "secret-1": {
+          labels: {},
+          annotations: {},
+          createTime: "2026-01-01T00:00:00Z",
+          versions: [],
+        },
+      },
+    };
+
+    const { port, server } = startHygieneMockServer(projectSecrets, {
+      listVersions: {
+        status: 500,
+        body: { error: { code: 500, message: "Internal server error" } },
+      },
+    });
+    try {
+      const provider = _createTestProvider(
+        "test-vault",
+        { project_id: "malformed-proj" },
+        "malformed-proj",
+        hygieneMockFetchFn(port),
+      );
+      await assertRejects(
+        () => provider.inventoryHygieneMetadata(["malformed-proj"]),
+        GcpSmOperationError,
+      );
+    } finally {
+      await server.shutdown();
+    }
+  },
+);

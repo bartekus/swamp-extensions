@@ -1,9 +1,10 @@
 manifestVersion: 1
 name: "@swamp/gcp-sm"
-version: "2026.09.10.0"
+version: "2026.09.17.0"
 description: |
   Read, write, and delete secrets stored in Google Cloud Secret Manager, with
-  support for vault annotations (`swamp vault annotate` / `swamp vault inspect`).
+  support for vault annotations (`swamp vault annotate` / `swamp vault inspect`)
+  and cross-project metadata-only hygiene inventory.
   Emits OpenTelemetry spans for vault operations so failures and latency are
   attributable in traces when a TracerProvider is configured.
 
@@ -28,6 +29,7 @@ description: |
   - `secretmanager.secrets.delete`
   - `secretmanager.versions.add`
   - `secretmanager.versions.access`
+  - `secretmanager.versions.list` (for hygiene inventory)
 
   ## Annotations
 
@@ -56,6 +58,15 @@ description: |
   swamp vault list-keys my-gcp-sm --json
   ```
 
+  ## Hygiene Inventory
+
+  The `inventoryHygieneMetadata` method produces a metadata-only snapshot
+  across explicit project parents. It lists all secrets and their versions
+  (metadata only — never calls `versions.access`) and captures rotation
+  schedules, version state, and creation times. Useful for reporting
+  rotation-notification gaps and latest-enabled-version age without
+  accessing actual secret payloads.
+
   ## Emulator Support
 
   For local development and testing, set `api_endpoint` to point at a GCP
@@ -72,6 +83,10 @@ description: |
   Secret keys are mapped to GCP secret IDs. Slashes in key names are replaced
   with hyphens (`/` → `-`) since GCP secret IDs only allow `[a-zA-Z0-9_-]`.
 repository: "https://github.com/swamp-club/swamp-extensions"
+releaseNotes: |
+  - Added: inventoryHygieneMetadata method for cross-project metadata-only
+    secret/version hygiene snapshots (rotation schedules, version state,
+    creation times — never accesses payloads)
 vaults:
   - gcp_sm.ts
 additionalFiles:
