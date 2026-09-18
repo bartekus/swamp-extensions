@@ -264,9 +264,6 @@ const GlobalArgsSchema = z.object({
     "The database engine type and version. The `databaseVersion` field cannot be changed after instance creation.",
   ).optional(),
   diskEncryptionConfiguration: z.object({
-    cmekSourceLogEncryptionEnforced: z.boolean().describe(
-      "Optional. Whether to enforce CMEK log encryption at source. When enforced, transaction logs are encrypted prior to being uploaded to Cloud Storage. If not enforced, then CMEK logs are encrypted by the Cloud Storage service.",
-    ).optional(),
     confidentialMode: z.boolean().describe(
       "Optional. If true, enables Confidential Mode for the instance's Hyperdisk Balanced volumes. Only supported for zonal C4A instances currently.",
     ).optional(),
@@ -274,7 +271,7 @@ const GlobalArgsSchema = z.object({
       "This is always `sql#diskEncryptionConfiguration`.",
     ).optional(),
     kmsKeyName: z.string().describe(
-      "Resource name of KMS key for disk encryption.",
+      "Resource name of KMS key for disk encryption",
     ).optional(),
   }).describe("Disk encryption configuration specific to an instance.")
     .optional(),
@@ -1155,7 +1152,6 @@ const StateSchema = z.object({
     }),
   }).optional(),
   diskEncryptionConfiguration: z.object({
-    cmekSourceLogEncryptionEnforced: z.boolean(),
     confidentialMode: z.boolean(),
     kind: z.string(),
     kmsKeyName: z.string(),
@@ -1586,9 +1582,6 @@ const InputsSchema = z.object({
     "The database engine type and version. The `databaseVersion` field cannot be changed after instance creation.",
   ).optional(),
   diskEncryptionConfiguration: z.object({
-    cmekSourceLogEncryptionEnforced: z.boolean().describe(
-      "Optional. Whether to enforce CMEK log encryption at source. When enforced, transaction logs are encrypted prior to being uploaded to Cloud Storage. If not enforced, then CMEK logs are encrypted by the Cloud Storage service.",
-    ).optional(),
     confidentialMode: z.boolean().describe(
       "Optional. If true, enables Confidential Mode for the instance's Hyperdisk Balanced volumes. Only supported for zonal C4A instances currently.",
     ).optional(),
@@ -1596,7 +1589,7 @@ const InputsSchema = z.object({
       "This is always `sql#diskEncryptionConfiguration`.",
     ).optional(),
     kmsKeyName: z.string().describe(
-      "Resource name of KMS key for disk encryption.",
+      "Resource name of KMS key for disk encryption",
     ).optional(),
   }).describe("Disk encryption configuration specific to an instance.")
     .optional(),
@@ -2474,7 +2467,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud SQL Admin Instances. Registered at `@swamp/gcp/sqladmin/instances`. */
 export const model = {
   type: "@swamp/gcp/sqladmin/instances",
-  version: "2026.09.17.1",
+  version: "2026.09.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2703,6 +2696,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.17.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.18.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

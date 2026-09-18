@@ -42,6 +42,38 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
+const ImageSourceSchema = z.object({
+  Uri: z.string().describe(
+    "The URI of the container image, e.g. an ECR image URI.",
+  ).optional(),
+});
+
+const ImageBuildConfigurationSchema = z.object({
+  Type: z.enum(["docker", "buildpack"]).describe(
+    "The type of image build: docker or buildpack.",
+  ),
+  DockerfileLocation: z.string().describe(
+    "The path to the Dockerfile, relative to the source root.",
+  ).optional(),
+  Buildpack: z.string().describe("The buildpack to use for building the image.")
+    .optional(),
+  Architecture: z.enum(["amd64", "arm64"]).describe(
+    "The target architecture for the built container image.",
+  ).optional(),
+  CodeBuildServiceRole: z.string().describe(
+    "The ARN of the IAM role that AWS CodeBuild assumes to build the application version.",
+  ),
+  ComputeType: z.enum([
+    "BUILD_GENERAL1_SMALL",
+    "BUILD_GENERAL1_MEDIUM",
+    "BUILD_GENERAL1_LARGE",
+  ]).describe("The compute type for the CodeBuild build environment.")
+    .optional(),
+  TimeoutInMinutes: z.number().int().describe(
+    "The timeout for the CodeBuild build, in minutes.",
+  ).optional(),
+});
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -63,6 +95,9 @@ const GlobalArgsSchema = z.object({
   ),
   Description: z.string().describe("A description of this application version.")
     .optional(),
+  Process: z.boolean().describe(
+    "Pre-process and validate the environment manifest (`env.yaml`) and configuration files in the source bundle. Leave unset for the service default.",
+  ).optional(),
   SourceBundle: z.object({
     S3Bucket: z.string().describe(
       "The Amazon S3 bucket where the data is located.",
@@ -70,16 +105,57 @@ const GlobalArgsSchema = z.object({
     S3Key: z.string().describe("The Amazon S3 key where the data is located."),
   }).describe(
     "The Amazon S3 bucket and key that identify the location of the source bundle for this version.",
-  ),
+  ).optional(),
+  BuildConfiguration: z.object({
+    CodeBuildServiceRole: z.string().describe(
+      "The ARN of the IAM role that AWS CodeBuild assumes to build the application version.",
+    ),
+    Image: z.string().describe(
+      "The CodeBuild image used for the build environment.",
+    ),
+    ComputeType: z.enum([
+      "BUILD_GENERAL1_SMALL",
+      "BUILD_GENERAL1_MEDIUM",
+      "BUILD_GENERAL1_LARGE",
+    ]).describe("The compute type for the CodeBuild build environment.")
+      .optional(),
+    TimeoutInMinutes: z.number().int().describe(
+      "The timeout for the CodeBuild build, in minutes.",
+    ).optional(),
+    ArtifactName: z.string().describe("The name of the build artifact.")
+      .optional(),
+  }).describe(
+    "Settings for an AWS CodeBuild build that packages and builds an application version from source code.",
+  ).optional(),
+  ImageConfiguration: z.object({
+    Source: ImageSourceSchema.describe(
+      "The container image source for this version, as an ECR image URI.",
+    ).optional(),
+    Build: ImageBuildConfigurationSchema.describe(
+      "Configuration for building a container image from source code.",
+    ).optional(),
+  }).describe("Configuration for image-based application versions.").optional(),
 });
 
 const StateSchema = z.object({
   Id: z.string(),
   ApplicationName: z.string(),
   Description: z.string().optional(),
+  Process: z.boolean().optional(),
   SourceBundle: z.object({
     S3Bucket: z.string(),
     S3Key: z.string(),
+  }).optional(),
+  BuildConfiguration: z.object({
+    CodeBuildServiceRole: z.string(),
+    Image: z.string(),
+    ComputeType: z.string(),
+    TimeoutInMinutes: z.number(),
+    ArtifactName: z.string(),
+  }).optional(),
+  ImageConfiguration: z.object({
+    Source: ImageSourceSchema,
+    Build: ImageBuildConfigurationSchema,
   }).optional(),
 }).passthrough();
 
@@ -96,6 +172,9 @@ const InputsSchema = z.object({
   ).optional(),
   Description: z.string().describe("A description of this application version.")
     .optional(),
+  Process: z.boolean().describe(
+    "Pre-process and validate the environment manifest (`env.yaml`) and configuration files in the source bundle. Leave unset for the service default.",
+  ).optional(),
   SourceBundle: z.object({
     S3Bucket: z.string().describe(
       "The Amazon S3 bucket where the data is located.",
@@ -105,6 +184,35 @@ const InputsSchema = z.object({
   }).describe(
     "The Amazon S3 bucket and key that identify the location of the source bundle for this version.",
   ).optional(),
+  BuildConfiguration: z.object({
+    CodeBuildServiceRole: z.string().describe(
+      "The ARN of the IAM role that AWS CodeBuild assumes to build the application version.",
+    ).optional(),
+    Image: z.string().describe(
+      "The CodeBuild image used for the build environment.",
+    ).optional(),
+    ComputeType: z.enum([
+      "BUILD_GENERAL1_SMALL",
+      "BUILD_GENERAL1_MEDIUM",
+      "BUILD_GENERAL1_LARGE",
+    ]).describe("The compute type for the CodeBuild build environment.")
+      .optional(),
+    TimeoutInMinutes: z.number().int().describe(
+      "The timeout for the CodeBuild build, in minutes.",
+    ).optional(),
+    ArtifactName: z.string().describe("The name of the build artifact.")
+      .optional(),
+  }).describe(
+    "Settings for an AWS CodeBuild build that packages and builds an application version from source code.",
+  ).optional(),
+  ImageConfiguration: z.object({
+    Source: ImageSourceSchema.describe(
+      "The container image source for this version, as an ECR image URI.",
+    ).optional(),
+    Build: ImageBuildConfigurationSchema.describe(
+      "Configuration for building a container image from source code.",
+    ).optional(),
+  }).describe("Configuration for image-based application versions.").optional(),
 });
 
 const _credentialKeys = new Set([
@@ -126,7 +234,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ElasticBeanstalk ApplicationVersion. Registered at `@swamp/aws/elasticbeanstalk/application-version`. */
 export const model = {
   type: "@swamp/aws/elasticbeanstalk/application-version",
-  version: "2026.08.17.2",
+  version: "2026.09.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -176,6 +284,11 @@ export const model = {
     {
       toVersion: "2026.08.17.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.18.1",
+      description: "Added: Process, BuildConfiguration, ImageConfiguration",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -291,7 +404,13 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["SourceBundle", "ApplicationName"],
+          [
+            "SourceBundle",
+            "ApplicationName",
+            "ImageConfiguration",
+            "BuildConfiguration",
+            "Process",
+          ],
           credentials,
         );
         const handle = await context.writeResource(

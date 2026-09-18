@@ -14,8 +14,8 @@ methods:
 - **delete** — remove the resource from AWS
 - **sync** — refresh all resource properties from AWS
 
-Use `swamp model type describe @swamp/aws/appsync/api` to see the full list of
-configurable properties and available methods for this model.
+Use `swamp model type describe @swamp/aws/appsync/api_key` to see the full list
+of configurable properties and available methods for this model.
 
 ## Authentication
 
@@ -47,17 +47,17 @@ export AWS_SECRET_ACCESS_KEY=wJal...
 ## Usage
 
 ```bash
-# Create a new api model
-swamp model create @swamp/aws/appsync/api my-api
+# Create a new api_key model
+swamp model create @swamp/aws/appsync/api_key my-api_key
 
 # Edit the model to configure its properties
-swamp model edit my-api
+swamp model edit my-api_key
 
 # Create the resource in AWS
-swamp model method run my-api create
+swamp model method run my-api_key create
 
 # Sync current state from AWS
-swamp model method run my-api sync
+swamp model method run my-api_key sync
 ```
 
 ## License

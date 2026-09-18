@@ -80,7 +80,28 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "The configuration for input switching based on the media quality confidence score (MQCS) as provided from AWS Elemental MediaLive.",
   ).optional(),
-  InputType: z.enum(["HLS", "CMAF"]).optional(),
+  InputType: z.enum(["HLS", "CMAF", "MULTIVIEW"]).optional(),
+  MultiviewConfiguration: z.object({
+    AvailableSources: z.array(
+      z.string().min(1).max(256).regex(new RegExp("^[a-zA-Z0-9_-]+$")),
+    ).describe(
+      "The channels that players can use as tiles in this multiview channel's output. Each source channel must be in the same channel group as the multiview channel, and must have an InputType of CMAF. Only the channels that you list here are available as tiles.",
+    ),
+    AvailableLayouts: z.array(
+      z.enum([
+        "LAYOUT_2EH",
+        "LAYOUT_2PL",
+        "LAYOUT_3EL",
+        "LAYOUT_3PL",
+        "LAYOUT_4E",
+        "LAYOUT_4PL",
+      ]),
+    ).describe(
+      "The tile layouts that players can request from this multiview channel's origin endpoints. Only the layouts that you list here are available. Each layout must appear at most once.",
+    ),
+  }).describe(
+    "The multiview configuration for a channel. A multiview channel composites video from several source channels into a single tiled output stream. Players receive one standard HLS or DASH stream instead of several separate streams. This setting is required when InputType is MULTIVIEW, and can't be set for any other input type.",
+  ).optional(),
   OutputHeaderConfiguration: z.object({
     PublishMQCS: z.boolean().describe(
       "When true, AWS Elemental MediaPackage includes the MQCS in responses to the CDN. This setting is valid only when InputType is CMAF.",
@@ -94,6 +115,7 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   Arn: z.string(),
+  AttachedMultiviewChannels: z.array(z.string()).optional(),
   ChannelGroupName: z.string().optional(),
   ChannelName: z.string().optional(),
   CreatedAt: z.string().optional(),
@@ -108,6 +130,10 @@ const StateSchema = z.object({
   }).optional(),
   InputType: z.string().optional(),
   ModifiedAt: z.string().optional(),
+  MultiviewConfiguration: z.object({
+    AvailableSources: z.array(z.string()),
+    AvailableLayouts: z.array(z.string()),
+  }).optional(),
   OutputHeaderConfiguration: z.object({
     PublishMQCS: z.boolean(),
   }).optional(),
@@ -142,7 +168,28 @@ const InputsSchema = z.object({
   }).describe(
     "The configuration for input switching based on the media quality confidence score (MQCS) as provided from AWS Elemental MediaLive.",
   ).optional(),
-  InputType: z.enum(["HLS", "CMAF"]).optional(),
+  InputType: z.enum(["HLS", "CMAF", "MULTIVIEW"]).optional(),
+  MultiviewConfiguration: z.object({
+    AvailableSources: z.array(
+      z.string().min(1).max(256).regex(new RegExp("^[a-zA-Z0-9_-]+$")),
+    ).describe(
+      "The channels that players can use as tiles in this multiview channel's output. Each source channel must be in the same channel group as the multiview channel, and must have an InputType of CMAF. Only the channels that you list here are available as tiles.",
+    ).optional(),
+    AvailableLayouts: z.array(
+      z.enum([
+        "LAYOUT_2EH",
+        "LAYOUT_2PL",
+        "LAYOUT_3EL",
+        "LAYOUT_3PL",
+        "LAYOUT_4E",
+        "LAYOUT_4PL",
+      ]),
+    ).describe(
+      "The tile layouts that players can request from this multiview channel's origin endpoints. Only the layouts that you list here are available. Each layout must appear at most once.",
+    ).optional(),
+  }).describe(
+    "The multiview configuration for a channel. A multiview channel composites video from several source channels into a single tiled output stream. Players receive one standard HLS or DASH stream instead of several separate streams. This setting is required when InputType is MULTIVIEW, and can't be set for any other input type.",
+  ).optional(),
   OutputHeaderConfiguration: z.object({
     PublishMQCS: z.boolean().describe(
       "When true, AWS Elemental MediaPackage includes the MQCS in responses to the CDN. This setting is valid only when InputType is CMAF.",
@@ -173,7 +220,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaPackageV2 Channel. Registered at `@swamp/aws/mediapackagev2/channel`. */
 export const model = {
   type: "@swamp/aws/mediapackagev2/channel",
-  version: "2026.08.17.2",
+  version: "2026.09.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -233,6 +280,11 @@ export const model = {
     {
       toVersion: "2026.08.17.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.18.1",
+      description: "Added: MultiviewConfiguration",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

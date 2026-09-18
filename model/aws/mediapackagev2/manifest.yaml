@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/mediapackagev2"
-version: "2026.09.17.1"
+version: "2026.09.18.1"
 description: "AWS MEDIAPACKAGEV2 infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -9,6 +9,8 @@ labels:
   - mediapackagev2
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: channel
 models:
   - channel.ts
   - channel_group.ts

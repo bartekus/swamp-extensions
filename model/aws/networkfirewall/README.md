@@ -14,8 +14,8 @@ methods:
 - **delete** — remove the resource from AWS
 - **sync** — refresh all resource properties from AWS
 
-Use `swamp model type describe @swamp/aws/networkfirewall/firewall_policy` to
-see the full list of configurable properties and available methods for this
+Use `swamp model type describe @swamp/aws/networkfirewall/container_association`
+to see the full list of configurable properties and available methods for this
 model.
 
 ## Authentication
@@ -48,17 +48,17 @@ export AWS_SECRET_ACCESS_KEY=wJal...
 ## Usage
 
 ```bash
-# Create a new firewall_policy model
-swamp model create @swamp/aws/networkfirewall/firewall_policy my-firewall_policy
+# Create a new container_association model
+swamp model create @swamp/aws/networkfirewall/container_association my-container_association
 
 # Edit the model to configure its properties
-swamp model edit my-firewall_policy
+swamp model edit my-container_association
 
 # Create the resource in AWS
-swamp model method run my-firewall_policy create
+swamp model method run my-container_association create
 
 # Sync current state from AWS
-swamp model method run my-firewall_policy sync
+swamp model method run my-container_association sync
 ```
 
 ## License

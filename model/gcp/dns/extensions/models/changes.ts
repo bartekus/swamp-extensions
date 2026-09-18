@@ -211,9 +211,7 @@ const GlobalArgsSchema = z.object({
     rrdatas: z.array(z.string()).describe(
       "As defined in RFC 1035 (section 5) and RFC 1034 (section 3.6.1) -- see examples.",
     ).optional(),
-    signatureRrdatas: z.array(z.string()).describe(
-      "As defined in RFC 4034 (section 3.2).",
-    ).optional(),
+    signatureRrdatas: z.array(z.string()).optional(),
     ttl: z.number().int().describe(
       "Number of seconds that this `ResourceRecordSet` can be cached by resolvers.",
     ).optional(),
@@ -281,9 +279,7 @@ const GlobalArgsSchema = z.object({
     rrdatas: z.array(z.string()).describe(
       "As defined in RFC 1035 (section 5) and RFC 1034 (section 3.6.1) -- see examples.",
     ).optional(),
-    signatureRrdatas: z.array(z.string()).describe(
-      "As defined in RFC 4034 (section 3.2).",
-    ).optional(),
+    signatureRrdatas: z.array(z.string()).optional(),
     ttl: z.number().int().describe(
       "Number of seconds that this `ResourceRecordSet` can be cached by resolvers.",
     ).optional(),
@@ -450,9 +446,7 @@ const InputsSchema = z.object({
     rrdatas: z.array(z.string()).describe(
       "As defined in RFC 1035 (section 5) and RFC 1034 (section 3.6.1) -- see examples.",
     ).optional(),
-    signatureRrdatas: z.array(z.string()).describe(
-      "As defined in RFC 4034 (section 3.2).",
-    ).optional(),
+    signatureRrdatas: z.array(z.string()).optional(),
     ttl: z.number().int().describe(
       "Number of seconds that this `ResourceRecordSet` can be cached by resolvers.",
     ).optional(),
@@ -520,9 +514,7 @@ const InputsSchema = z.object({
     rrdatas: z.array(z.string()).describe(
       "As defined in RFC 1035 (section 5) and RFC 1034 (section 3.6.1) -- see examples.",
     ).optional(),
-    signatureRrdatas: z.array(z.string()).describe(
-      "As defined in RFC 4034 (section 3.2).",
-    ).optional(),
+    signatureRrdatas: z.array(z.string()).optional(),
     ttl: z.number().int().describe(
       "Number of seconds that this `ResourceRecordSet` can be cached by resolvers.",
     ).optional(),
@@ -569,7 +561,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud DNS Changes. Registered at `@swamp/gcp/dns/changes`. */
 export const model = {
   type: "@swamp/gcp/dns/changes",
-  version: "2026.08.12.2",
+  version: "2026.09.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -693,6 +685,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.18.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

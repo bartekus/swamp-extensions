@@ -1307,11 +1307,6 @@ const ResourceSchema = z.object({
     }).optional(),
     pageIntegrityEnabled: z.boolean().optional(),
     rulesets: z.record(z.string(), z.unknown()).optional(),
-    securityPlus: z.boolean().optional(),
-    securityPlusMetadata: z.object({
-      firstEnabledAt: z.number().optional(),
-      updatedAt: z.number().optional(),
-    }).optional(),
   }).nullable().optional(),
   serverlessFunctionZeroConfigFailover: z.boolean().nullable().optional(),
   services: z.array(z.object({
@@ -1722,7 +1717,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Projects. Registered at `@swamp/vercel/projects/projects`. */
 export const model = {
   type: "@swamp/vercel/projects/projects",
-  version: "2026.09.17.1",
+  version: "2026.09.18.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -1846,6 +1841,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.17.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.18.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

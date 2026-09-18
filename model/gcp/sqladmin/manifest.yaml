@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/sqladmin"
-version: "2026.09.17.1"
+version: "2026.09.18.1"
 description: "Google Cloud sqladmin infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -11,7 +11,6 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Added: workloadcaptures
   - Updated: backupruns, instances
 models:
   - backupruns.ts
@@ -23,7 +22,6 @@ models:
   - sslcerts.ts
   - tiers.ts
   - users.ts
-  - workloadcaptures.ts
 additionalFiles:
   - LICENSE.txt
   - README.md

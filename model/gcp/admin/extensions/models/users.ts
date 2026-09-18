@@ -281,7 +281,7 @@ const GlobalArgsSchema = z.object({
     "The user's websites. The maximum allowed data size for this field is 2KB.",
   ).optional(),
   resolveConflictAccount: z.string().describe(
-    "Optional. If set to `true`, the option selected for [handling unmanaged user accounts](https://support.google.com/a/answer/11112794) will apply. Default: `false`",
+    "Optional. Applies the option selected for [Find and add unmanaged users](https://knowledge.workspace.google.com/admin/users/find-and-add-unmanaged-users) to resolve conflicting accounts when set to `true`. Default: `false`",
   ).optional(),
 });
 
@@ -458,7 +458,7 @@ const InputsSchema = z.object({
     "The user's websites. The maximum allowed data size for this field is 2KB.",
   ).optional(),
   resolveConflictAccount: z.string().describe(
-    "Optional. If set to `true`, the option selected for [handling unmanaged user accounts](https://support.google.com/a/answer/11112794) will apply. Default: `false`",
+    "Optional. Applies the option selected for [Find and add unmanaged users](https://knowledge.workspace.google.com/admin/users/find-and-add-unmanaged-users) to resolve conflicting accounts when set to `true`. Default: `false`",
   ).optional(),
 });
 
@@ -488,7 +488,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Admin SDK Users. Registered at `@swamp/gcp/admin/users`. */
 export const model = {
   type: "@swamp/gcp/admin/users",
-  version: "2026.09.07.1",
+  version: "2026.09.18.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -502,6 +502,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.18.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

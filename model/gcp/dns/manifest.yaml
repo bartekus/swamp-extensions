@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/dns"
-version: "2026.08.13.1"
+version: "2026.09.18.1"
 description: "Google Cloud dns infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: resourcerecordsets
+  - Updated: changes, projects, resourcerecordsets, responsepolicyrules
 models:
   - changes.ts
   - dnskeys.ts

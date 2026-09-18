@@ -44,7 +44,7 @@ import {
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
   caching: z.object({
-    disabled: z.boolean().optional(),
+    disabled: z.boolean(),
     max_age: z.number().int().optional(),
     stale_while_revalidate: z.number().int().optional(),
   }).optional(),
@@ -55,35 +55,24 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "mTLS configuration for the origin connection. Cannot be used with VPC Service origins; TLS must be managed on the VPC Service.",
   ).optional(),
-  name: z.string().describe(
+  name: z.string().max(2048).describe(
     "The name of the Hyperdrive configuration. Used to identify the configuration in the Cloudflare dashboard and API.",
   ),
   origin: z.object({
-    database: z.string().optional(),
-    password: z.string().optional(),
+    database: z.string().max(2048).optional(),
+    password: z.string().max(2048).optional(),
     scheme: z.enum(["postgres", "postgresql", "mysql"]).optional(),
-    user: z.string().optional(),
+    user: z.string().max(2048).optional(),
     host: z.string().optional(),
-    port: z.number().int().optional(),
+    port: z.number().int().min(1).max(65535).optional(),
     access_client_id: z.string().optional(),
     access_client_secret: z.string().optional(),
     service_id: z.string().optional(),
-  }),
+  }).optional(),
   origin_connection_limit: z.number().int().min(5).describe(
     "The (soft) maximum number of connections the Hyperdrive is allowed to make to the origin database.\n\nMaximum allowed: 20 for free tier accounts, 100 for paid tier accounts.\nIf not specified, defaults to 20 for free tier and 60 for paid tier.\nCertain Cloudflare-managed origins may be permitted a higher limit.\nContact Cloudflare if you need a higher limit.\n",
   ).optional(),
-  created_on: z.string().describe(
-    "Defines the creation time of the Hyperdrive configuration.",
-  ).optional(),
-  id: z.string().max(32).describe(
-    "Define configurations using a unique string identifier.",
-  ),
-  modified_on: z.string().describe(
-    "Defines the last modified time of the Hyperdrive configuration.",
-  ).optional(),
-  restarted_on: z.string().describe(
-    "Defines the last time the Hyperdrive connection pool was explicitly restarted via the restart endpoint. Omitted if the pool has never been explicitly restarted.",
-  ).optional(),
+  integration: z.record(z.string(), z.unknown()).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -103,6 +92,14 @@ const ResourceSchema = z.object({
   }).optional(),
   created_on: z.string().optional(),
   id: z.string(),
+  integration: z.object({
+    custom_database_name: z.string().optional(),
+    database_branch_name: z.string().optional(),
+    database_name: z.string().optional(),
+    integration: z.string().optional(),
+    organization_name: z.string().optional(),
+    scheme: z.string().optional(),
+  }).optional(),
   modified_on: z.string().optional(),
   mtls: z.object({
     ca_certificate_id: z.string().optional(),
@@ -130,7 +127,7 @@ type ResourceData = z.infer<typeof ResourceSchema>;
 const InputsSchema = z.object({
   account_id: z.string().optional(),
   caching: z.object({
-    disabled: z.boolean().optional(),
+    disabled: z.boolean(),
     max_age: z.number().int().optional(),
     stale_while_revalidate: z.number().int().optional(),
   }).optional(),
@@ -139,23 +136,20 @@ const InputsSchema = z.object({
     mtls_certificate_id: z.string().optional(),
     sslmode: z.string().optional(),
   }).optional(),
-  name: z.string().optional(),
+  name: z.string().max(2048).optional(),
   origin: z.object({
-    database: z.string().optional(),
-    password: z.string().optional(),
+    database: z.string().max(2048).optional(),
+    password: z.string().max(2048).optional(),
     scheme: z.enum(["postgres", "postgresql", "mysql"]).optional(),
-    user: z.string().optional(),
+    user: z.string().max(2048).optional(),
     host: z.string().optional(),
-    port: z.number().int().optional(),
+    port: z.number().int().min(1).max(65535).optional(),
     access_client_id: z.string().optional(),
     access_client_secret: z.string().optional(),
     service_id: z.string().optional(),
   }).optional(),
   origin_connection_limit: z.number().int().min(5).optional(),
-  created_on: z.string().optional(),
-  id: z.string().max(32).optional(),
-  modified_on: z.string().optional(),
-  restarted_on: z.string().optional(),
+  integration: z.record(z.string(), z.unknown()).optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
   apiKey: z.string().meta({ sensitive: true }).optional(),
   email: z.string().meta({ sensitive: true }).optional(),
@@ -164,7 +158,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Configs. Registered at `@swamp/cloudflare/hyperdrive/configs`. */
 export const model = {
   type: "@swamp/cloudflare/hyperdrive/configs",
-  version: "2026.08.25.2",
+  version: "2026.09.18.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -206,6 +200,21 @@ export const model = {
       description: "Added: restarted_on",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.18.1",
+      description:
+        "Added: integration. Removed: created_on, id, modified_on, restarted_on",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const {
+          created_on: _created_on,
+          id: _id,
+          modified_on: _modified_on,
+          restarted_on: _restarted_on,
+          ...rest
+        } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -226,16 +235,13 @@ export const model = {
         const endpoint = "/accounts/" + g.account_id + "/hyperdrive/configs";
         const body: Record<string, unknown> = {};
         if (g.caching !== undefined) body.caching = g.caching;
-        if (g.created_on !== undefined) body.created_on = g.created_on;
-        if (g.id !== undefined) body.id = g.id;
-        if (g.modified_on !== undefined) body.modified_on = g.modified_on;
         if (g.mtls !== undefined) body.mtls = g.mtls;
         if (g.name !== undefined) body.name = g.name;
-        if (g.origin !== undefined) body.origin = g.origin;
         if (g.origin_connection_limit !== undefined) {
           body.origin_connection_limit = g.origin_connection_limit;
         }
-        if (g.restarted_on !== undefined) body.restarted_on = g.restarted_on;
+        if (g.integration !== undefined) body.integration = g.integration;
+        if (g.origin !== undefined) body.origin = g.origin;
         const result = await create(endpoint, body, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
@@ -290,16 +296,6 @@ export const model = {
             "origin_connection_limit",
             String(g.origin_connection_limit),
           ]);
-        }
-        if (g.created_on !== undefined) {
-          filters.push(["created_on", String(g.created_on)]);
-        }
-        if (g.id !== undefined) filters.push(["id", String(g.id)]);
-        if (g.modified_on !== undefined) {
-          filters.push(["modified_on", String(g.modified_on)]);
-        }
-        if (g.restarted_on !== undefined) {
-          filters.push(["restarted_on", String(g.restarted_on)]);
         }
         if (filters.length === 0) {
           throw new Error(

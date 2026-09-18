@@ -1,0 +1,20 @@
+# Auto-generated manifest. Re-generate with the appropriate deno task.
+manifestVersion: 1
+name: "@swamp/gcp/fcm"
+version: "2026.09.18.1"
+description: "Google Cloud fcm infrastructure models"
+repository: "https://github.com/swamp-club/swamp-extensions"
+labels:
+  - gcp
+  - google-cloud
+  - fcm
+  - cloud
+  - infrastructure
+releaseNotes: |
+  - Added: registrations_topicsubscriptions
+models:
+  - registrations_topicsubscriptions.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []
